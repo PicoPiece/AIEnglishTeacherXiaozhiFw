@@ -27,32 +27,32 @@ void LcdDisplay::InitializeLcdThemes() {
     auto icon_font = std::make_shared<LvglBuiltInFont>(&BUILTIN_ICON_FONT);
     auto large_icon_font = std::make_shared<LvglBuiltInFont>(&font_awesome_30_4);
 
-    // light theme
+    // light theme — English Teacher: soft blue educational palette
     auto light_theme = new LvglTheme("light");
-    light_theme->set_background_color(lv_color_hex(0xFFFFFF));
-    light_theme->set_text_color(lv_color_hex(0x000000));
-    light_theme->set_chat_background_color(lv_color_hex(0xE0E0E0));
-    light_theme->set_user_bubble_color(lv_color_hex(0x00FF00));
-    light_theme->set_assistant_bubble_color(lv_color_hex(0xDDDDDD));
-    light_theme->set_system_bubble_color(lv_color_hex(0xFFFFFF));
-    light_theme->set_system_text_color(lv_color_hex(0x000000));
-    light_theme->set_border_color(lv_color_hex(0x000000));
-    light_theme->set_low_battery_color(lv_color_hex(0x000000));
+    light_theme->set_background_color(lv_color_hex(0xEBF5FB));
+    light_theme->set_text_color(lv_color_hex(0x1B2631));
+    light_theme->set_chat_background_color(lv_color_hex(0xD6EAF8));
+    light_theme->set_user_bubble_color(lv_color_hex(0x82E0AA));
+    light_theme->set_assistant_bubble_color(lv_color_hex(0xAED6F1));
+    light_theme->set_system_bubble_color(lv_color_hex(0xFADBD8));
+    light_theme->set_system_text_color(lv_color_hex(0x641E16));
+    light_theme->set_border_color(lv_color_hex(0x2980B9));
+    light_theme->set_low_battery_color(lv_color_hex(0xE74C3C));
     light_theme->set_text_font(text_font);
     light_theme->set_icon_font(icon_font);
     light_theme->set_large_icon_font(large_icon_font);
 
-    // dark theme
+    // dark theme — English Teacher: deep navy with warm accents
     auto dark_theme = new LvglTheme("dark");
-    dark_theme->set_background_color(lv_color_hex(0x000000));
-    dark_theme->set_text_color(lv_color_hex(0xFFFFFF));
-    dark_theme->set_chat_background_color(lv_color_hex(0x1F1F1F));
-    dark_theme->set_user_bubble_color(lv_color_hex(0x00FF00));
-    dark_theme->set_assistant_bubble_color(lv_color_hex(0x222222));
-    dark_theme->set_system_bubble_color(lv_color_hex(0x000000));
-    dark_theme->set_system_text_color(lv_color_hex(0xFFFFFF));
-    dark_theme->set_border_color(lv_color_hex(0xFFFFFF));
-    dark_theme->set_low_battery_color(lv_color_hex(0xFF0000));
+    dark_theme->set_background_color(lv_color_hex(0x0B1929));
+    dark_theme->set_text_color(lv_color_hex(0xEBF5FB));
+    dark_theme->set_chat_background_color(lv_color_hex(0x152238));
+    dark_theme->set_user_bubble_color(lv_color_hex(0x1E8449));
+    dark_theme->set_assistant_bubble_color(lv_color_hex(0x1A5276));
+    dark_theme->set_system_bubble_color(lv_color_hex(0x4A235A));
+    dark_theme->set_system_text_color(lv_color_hex(0xF5B7B1));
+    dark_theme->set_border_color(lv_color_hex(0x5DADE2));
+    dark_theme->set_low_battery_color(lv_color_hex(0xE74C3C));
     dark_theme->set_text_font(text_font);
     dark_theme->set_icon_font(icon_font);
     dark_theme->set_large_icon_font(large_icon_font);
