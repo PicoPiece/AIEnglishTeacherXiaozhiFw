@@ -8,7 +8,7 @@
 #include "assets/lang_config.h"
 
 #include <esp_log.h>
-#include <esp_lcd_panel_vendor.h>
+#include <esp_lcd_ili9341.h>
 #include <esp_lcd_panel_io.h>
 #include <esp_lcd_panel_ops.h>
 #include <driver/spi_common.h>
@@ -49,7 +49,7 @@ private:
         panel_config.reset_gpio_num = DISPLAY_RST_PIN;
         panel_config.rgb_ele_order = DISPLAY_RGB_ORDER;
         panel_config.bits_per_pixel = 16;
-        ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(panel_io, &panel_config, &panel));
+        ESP_ERROR_CHECK(esp_lcd_new_panel_ili9341(panel_io, &panel_config, &panel));
 
         esp_lcd_panel_reset(panel);
         esp_lcd_panel_init(panel);
