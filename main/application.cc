@@ -948,7 +948,9 @@ void Application::SetListeningMode(ListeningMode mode) {
 }
 
 ListeningMode Application::GetDefaultListeningMode() const {
-    return aec_mode_ == kAecOff ? kListeningModeAutoStop : kListeningModeRealtime;
+    // Single-turn mode: after AI speaks, go to Idle. Child must press button to speak again.
+    // This gives the child time to read the screen and think before responding.
+    return kListeningModeManualStop;
 }
 
 void Application::Reboot() {
