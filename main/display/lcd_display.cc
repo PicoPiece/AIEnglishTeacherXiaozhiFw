@@ -488,13 +488,14 @@ void LcdDisplay::SetupUI() {
 
     emoji_image_ = lv_img_create(screen);
     lv_obj_align(emoji_image_, LV_ALIGN_TOP_MID, 0, text_font->line_height + lvgl_theme->spacing(8));
+    lv_obj_add_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
 
-    // Display AI logo while booting
     emoji_label_ = lv_label_create(screen);
     lv_obj_center(emoji_label_);
     lv_obj_set_style_text_font(emoji_label_, large_icon_font, 0);
     lv_obj_set_style_text_color(emoji_label_, lvgl_theme->text_color(), 0);
-    lv_label_set_text(emoji_label_, FONT_AWESOME_MICROCHIP_AI);
+    lv_label_set_text(emoji_label_, "");
+    lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
 }
 #if CONFIG_IDF_TARGET_ESP32P4
 #define  MAX_MESSAGES 40
@@ -787,16 +788,8 @@ void LcdDisplay::ClearChatMessages() {
         return;
     }
     
-    // Use lv_obj_clean to delete all children of content_ (chat message bubbles)
     lv_obj_clean(content_);
-    
-    // Reset chat_message_label_ as it has been deleted
     chat_message_label_ = nullptr;
-    
-    // Show the centered AI logo (emoji_label_) again
-    if (emoji_label_ != nullptr) {
-        lv_obj_remove_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
-    }
     
     ESP_LOGI(TAG, "Chat messages cleared");
 }
@@ -1072,78 +1065,7 @@ void LcdDisplay::ClearChatMessages() {
 #endif
 
 void LcdDisplay::SetEmotion(const char* emotion) {
-    if (!setup_ui_called_) {
-        ESP_LOGW(TAG, "SetEmotion('%s') called before SetupUI() - emotion will not be displayed!", emotion);
-    }
-    // Stop any running GIF animation
-    if (gif_controller_) {
-        DisplayLockGuard lock(this);
-        gif_controller_->Stop();
-        gif_controller_.reset();
-    }
-    
-    if (emoji_image_ == nullptr) {
-        if (setup_ui_called_) {
-            ESP_LOGW(TAG, "SetEmotion('%s') failed: emoji_image_ is nullptr (SetupUI() was called but emoji image not created)", emotion);
-        }
-        return;
-    }
-
-    auto emoji_collection = static_cast<LvglTheme*>(current_theme_)->emoji_collection();
-    auto image = emoji_collection != nullptr ? emoji_collection->GetEmojiImage(emotion) : nullptr;
-    if (image == nullptr) {
-        const char* utf8 = font_awesome_get_utf8(emotion);
-        if (utf8 != nullptr && emoji_label_ != nullptr) {
-            DisplayLockGuard lock(this);
-            lv_label_set_text(emoji_label_, utf8);
-            lv_obj_add_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
-        }
-        return;
-    }
-
-    DisplayLockGuard lock(this);
-    if (image->IsGif()) {
-        // Create new GIF controller
-        gif_controller_ = std::make_unique<LvglGif>(image->image_dsc());
-        
-        if (gif_controller_->IsLoaded()) {
-            // Set up frame update callback
-            gif_controller_->SetFrameCallback([this]() {
-                lv_image_set_src(emoji_image_, gif_controller_->image_dsc());
-            });
-            
-            // Set initial frame and start animation
-            lv_image_set_src(emoji_image_, gif_controller_->image_dsc());
-            gif_controller_->Start();
-            
-            // Show GIF, hide others
-            lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            ESP_LOGE(TAG, "Failed to load GIF for emotion: %s", emotion);
-            gif_controller_.reset();
-        }
-    } else {
-        lv_image_set_src(emoji_image_, image->image_dsc());
-        lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_remove_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
-    }
-
-#if CONFIG_USE_WECHAT_MESSAGE_STYLE
-    // In WeChat message style, if emotion is neutral, don't display it
-    uint32_t child_count = lv_obj_get_child_cnt(content_);
-    if (strcmp(emotion, "neutral") == 0 && child_count > 0) {
-        // Stop GIF animation if running
-        if (gif_controller_) {
-            gif_controller_->Stop();
-            gif_controller_.reset();
-        }
-        
-        lv_obj_add_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
-    }
-#endif
+    (void)emotion;
 }
 
 void LcdDisplay::SetTheme(Theme* theme) {
