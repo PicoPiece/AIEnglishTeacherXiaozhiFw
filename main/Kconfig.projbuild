@@ -2,7 +2,7 @@ menu "AI Teacher Assistant"
 
 config OTA_URL
     string "Default OTA URL"
-    default "https://api.tenclass.net/xiaozhi/ota/"
+    default "http://aietadmin.picopiece.com/xiaozhi/ota/"
     help
         The application will access this URL to check for new firmwares and server address.
 
