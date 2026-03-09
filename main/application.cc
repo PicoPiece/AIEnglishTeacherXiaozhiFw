@@ -531,11 +531,10 @@ void Application::InitializeProtocol() {
             } else if (strcmp(state->valuestring, "stop") == 0) {
                 Schedule([this]() {
                     if (GetDeviceState() == kDeviceStateSpeaking) {
-                        if (listening_mode_ == kListeningModeManualStop) {
-                            SetDeviceState(kDeviceStateIdle);
-                        } else {
-                            SetDeviceState(kDeviceStateListening);
-                        }
+                        // Always go to Idle after AI finishes speaking.
+                        // Child must press button again to speak, giving time to
+                        // read the screen and think before responding.
+                        SetDeviceState(kDeviceStateIdle);
                     }
                 });
             } else if (strcmp(state->valuestring, "sentence_start") == 0) {
@@ -948,9 +947,7 @@ void Application::SetListeningMode(ListeningMode mode) {
 }
 
 ListeningMode Application::GetDefaultListeningMode() const {
-    // Single-turn mode: after AI speaks, go to Idle. Child must press button to speak again.
-    // This gives the child time to read the screen and think before responding.
-    return kListeningModeManualStop;
+    return kListeningModeAutoStop;
 }
 
 void Application::Reboot() {
