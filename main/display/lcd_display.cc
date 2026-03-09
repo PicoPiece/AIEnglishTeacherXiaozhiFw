@@ -1068,6 +1068,17 @@ void LcdDisplay::SetEmotion(const char* emotion) {
     (void)emotion;
 }
 
+void LcdDisplay::ScrollChatBy(int dy) {
+    DisplayLockGuard lock(this);
+#if CONFIG_USE_WECHAT_MESSAGE_STYLE
+    if (content_ != nullptr) {
+        lv_obj_scroll_by(content_, 0, dy, LV_ANIM_ON);
+    }
+#else
+    (void)dy;
+#endif
+}
+
 void LcdDisplay::SetTheme(Theme* theme) {
     DisplayLockGuard lock(this);
     

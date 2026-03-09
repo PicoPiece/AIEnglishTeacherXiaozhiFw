@@ -54,7 +54,7 @@ public:
     // Add theme switching function
     virtual void SetTheme(Theme* theme) override;
     
-    // Set whether to hide chat messages/subtitles
+    virtual void ScrollChatBy(int dy) override;
     void SetHideSubtitle(bool hide);
 };
 
