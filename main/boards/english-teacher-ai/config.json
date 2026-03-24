@@ -6,6 +6,7 @@
             "sdkconfig_append": [
                 "CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y",
                 "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"partitions/v2/16m.csv\"",
+                "CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y",
                 "CONFIG_LANGUAGE_EN_US=y",
                 "CONFIG_USE_WECHAT_MESSAGE_STYLE=y"
             ]

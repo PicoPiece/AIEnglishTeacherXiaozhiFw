@@ -1,47 +1,56 @@
 #ifndef _BOARD_CONFIG_H_
 #define _BOARD_CONFIG_H_
 
+// AI-VOX3 Board (ESP32-S3R8 + ES8311 + NS4150B + ST7789 240x240)
+// Schematic: AI_VOX_V3.kicad_sch Rev V0.5
+//
+// GPIO mapping deduced from schematic PDF. Verify against KiCad source
+// if any peripheral fails to initialize.
+
 #include <driver/gpio.h>
 
-#define AUDIO_INPUT_SAMPLE_RATE  16000
+// Audio: ES8311 codec + NS4150B speaker amp
+#define AUDIO_INPUT_SAMPLE_RATE  24000
 #define AUDIO_OUTPUT_SAMPLE_RATE 24000
 
-#define AUDIO_I2S_METHOD_SIMPLEX
+#define AUDIO_I2S_GPIO_MCLK GPIO_NUM_3    // IO3 → ES8311 MCLK (pin 2)
+#define AUDIO_I2S_GPIO_BCLK GPIO_NUM_42   // IO42 → ES8311 SCLK (pin 6)
+#define AUDIO_I2S_GPIO_WS   GPIO_NUM_43   // IO43 → ES8311 LRCK (pin 8)
+#define AUDIO_I2S_GPIO_DOUT GPIO_NUM_44   // IO44 → ES8311 DSDIN (pin 9), MCU → codec
+#define AUDIO_I2S_GPIO_DIN  GPIO_NUM_48   // IO48 → ES8311 ASDOUT (pin 7), codec → MCU
 
-// INMP441 Microphone (I2S Input) - XIAOZHI.VN pinout
-#define AUDIO_I2S_MIC_GPIO_WS   GPIO_NUM_4
-#define AUDIO_I2S_MIC_GPIO_SCK  GPIO_NUM_5
-#define AUDIO_I2S_MIC_GPIO_DIN  GPIO_NUM_6
+#define AUDIO_CODEC_I2C_SDA_PIN  GPIO_NUM_1   // IO1 → ES8311 CDATA (pin 19)
+#define AUDIO_CODEC_I2C_SCL_PIN  GPIO_NUM_2   // IO2 → ES8311 CCLK (pin 1)
+#define AUDIO_CODEC_ES8311_ADDR  ES8311_CODEC_DEFAULT_ADDR
+#define AUDIO_CODEC_PA_PIN       GPIO_NUM_4   // IO4 → NS4150B CTRL via Q1
 
-// MAX98357A Speaker (I2S Output) - XIAOZHI.VN pinout
-#define AUDIO_I2S_SPK_GPIO_DOUT GPIO_NUM_7
-#define AUDIO_I2S_SPK_GPIO_BCLK GPIO_NUM_15
-#define AUDIO_I2S_SPK_GPIO_LRCK GPIO_NUM_16
+// Buttons
+#define BOOT_BUTTON_GPIO        GPIO_NUM_0    // IO0, boot button
+#define VOLUME_UP_BUTTON_GPIO   GPIO_NUM_46   // IO46, button A
+#define VOLUME_DOWN_BUTTON_GPIO GPIO_NUM_45   // IO45, button B
 
-#define BUILTIN_LED_GPIO        GPIO_NUM_48
-#define BOOT_BUTTON_GPIO        GPIO_NUM_0
-#define VOLUME_UP_BUTTON_GPIO   GPIO_NUM_40
-#define VOLUME_DOWN_BUTTON_GPIO GPIO_NUM_39
+// WS2812 RGB LED
+#define BUILTIN_LED_GPIO        GPIO_NUM_41   // IO41
 
-// ILI9341 TFT Display (128x160)
-#define DISPLAY_BACKLIGHT_PIN   GPIO_NUM_17
-#define DISPLAY_MOSI_PIN        GPIO_NUM_41
-#define DISPLAY_CLK_PIN         GPIO_NUM_42
-#define DISPLAY_DC_PIN          GPIO_NUM_1
-#define DISPLAY_RST_PIN         GPIO_NUM_2
-#define DISPLAY_CS_PIN          GPIO_NUM_38
-
-#define LCD_TYPE_ILI9341_SERIAL
-#define DISPLAY_WIDTH   160
-#define DISPLAY_HEIGHT  128
+// Display: ST7789 240x240 SPI LCD
+#define DISPLAY_WIDTH   240
+#define DISPLAY_HEIGHT  240
 #define DISPLAY_MIRROR_X false
-#define DISPLAY_MIRROR_Y true
-#define DISPLAY_SWAP_XY true
-#define DISPLAY_INVERT_COLOR    false
-#define DISPLAY_RGB_ORDER  LCD_RGB_ELEMENT_ORDER_BGR
-#define DISPLAY_OFFSET_X  0
-#define DISPLAY_OFFSET_Y  0
+#define DISPLAY_MIRROR_Y false
+#define DISPLAY_SWAP_XY  false
+#define DISPLAY_OFFSET_X 0
+#define DISPLAY_OFFSET_Y 0
+
+#define DISPLAY_SPI_MOSI_PIN  GPIO_NUM_14     // IO14 → LCD SDA (pin 4)
+#define DISPLAY_SPI_SCLK_PIN  GPIO_NUM_15     // IO15 → LCD SCL (pin 6)
+#define DISPLAY_SPI_CS_PIN    GPIO_NUM_16     // IO16 → LCD CS (pin 7)
+#define DISPLAY_SPI_DC_PIN    GPIO_NUM_17     // IO17 → LCD DC (pin 5)
+#define DISPLAY_SPI_RESET_PIN GPIO_NUM_NC     // LCD RESET tied to system EN
+#define DISPLAY_BACKLIGHT_PIN GPIO_NUM_21     // IO21 → LCD backlight
 #define DISPLAY_BACKLIGHT_OUTPUT_INVERT false
-#define DISPLAY_SPI_MODE 0
+
+// Battery monitoring
+#define BATTERY_ADC_PIN         GPIO_NUM_18   // IO18, battery voltage divider
+#define CHARGE_DETECT_PIN       GPIO_NUM_47   // IO47, charge status from FM5327
 
 #endif // _BOARD_CONFIG_H_

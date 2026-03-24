@@ -123,7 +123,7 @@ choice BOARD_TYPE
     help
         Board type. 开发板类型
     config BOARD_TYPE_ENGLISH_TEACHER_AI
-        bool "English Teacher AI (INMP441 + MAX98357A + ST7735)"
+        bool "English Teacher AI - AI-VOX3 (ES8311 + NS4150B + ST7789 240x240)"
         depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_BREAD_COMPACT_WIFI
         bool "Bread Compact WiFi (面包板)"
