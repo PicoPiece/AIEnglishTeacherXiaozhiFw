@@ -12,6 +12,14 @@ config ACTIVATION_URL
     help
         URL displayed on the LCD during device activation. Overrides the server-provided URL.
 
+config TIMEZONE_OFFSET_MINUTES
+    int "Timezone offset from UTC in minutes"
+    default 420
+    help
+        Override the server-provided timezone offset.
+        Examples: UTC+7 (Ho Chi Minh) = 420, UTC+8 (China) = 480, UTC+9 (Japan) = 540.
+        Set to -1 to use the server-provided value.
+
 choice
     prompt "Flash Assets"
     default FLASH_DEFAULT_ASSETS if !USE_EMOTE_MESSAGE_STYLE

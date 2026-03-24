@@ -201,10 +201,13 @@ esp_err_t Ota::CheckVersion() {
             struct timeval tv;
             double ts = timestamp->valuedouble;
             
-            // 如果有时区偏移，计算本地时间
+#if defined(CONFIG_TIMEZONE_OFFSET_MINUTES) && CONFIG_TIMEZONE_OFFSET_MINUTES >= 0
+            ts += ((double)CONFIG_TIMEZONE_OFFSET_MINUTES * 60 * 1000);
+#else
             if (cJSON_IsNumber(timezone_offset)) {
-                ts += (timezone_offset->valueint * 60 * 1000); // 转换分钟为毫秒
+                ts += (timezone_offset->valueint * 60 * 1000);
             }
+#endif
             
             tv.tv_sec = (time_t)(ts / 1000);  // 转换毫秒为秒
             tv.tv_usec = (suseconds_t)((long long)ts % 1000) * 1000;  // 剩余的毫秒转换为微秒
