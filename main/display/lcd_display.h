@@ -12,7 +12,7 @@
 #include <memory>
 
 #define PREVIEW_IMAGE_DURATION_MS 5000
-
+#define IDLE_EMOJI_DELAY_MS 10000
 
 class LcdDisplay : public LvglDisplay {
 protected:
@@ -34,24 +34,32 @@ protected:
     lv_obj_t* chat_message_label_ = nullptr;
     esp_timer_handle_t preview_timer_ = nullptr;
     std::unique_ptr<LvglImage> preview_image_cached_ = nullptr;
-    bool hide_subtitle_ = false;  // Control whether to hide chat messages/subtitles
+    bool hide_subtitle_ = false;
+
+    esp_timer_handle_t idle_emoji_timer_ = nullptr;
+    bool emoji_idle_mode_ = false;
 
     void InitializeLcdThemes();
     virtual bool Lock(int timeout_ms = 0) override;
     virtual void Unlock() override;
+    void StartIdleEmojiTimer();
+    void CancelIdleEmojiTimer();
+    void EnterEmojiIdleMode();
+    void ExitEmojiIdleMode();
+    void StartEmojiBreathingAnimation();
+    void StopEmojiBreathingAnimation();
 
 protected:
-    // Add protected constructor
     LcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel, int width, int height);
     
 public:
     ~LcdDisplay();
+    virtual void SetStatus(const char* status) override;
     virtual void SetEmotion(const char* emotion) override;
     virtual void SetChatMessage(const char* role, const char* content) override;
     virtual void ClearChatMessages() override;
     virtual void SetPreviewImage(std::unique_ptr<LvglImage> image) override;
     virtual void SetupUI() override;
-    // Add theme switching function
     virtual void SetTheme(Theme* theme) override;
     
     virtual void ScrollChatBy(int dy) override;

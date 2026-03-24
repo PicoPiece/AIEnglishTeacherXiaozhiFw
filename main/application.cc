@@ -854,6 +854,7 @@ void Application::HandleStateChangedEvent() {
         case kDeviceStateIdle:
             audio_service_.EnableVoiceProcessing(false);
             audio_service_.EnableWakeWordDetection(true);
+            display->SetChatMessage("system", "");
             break;
         case kDeviceStateConnecting:
             display->SetStatus(Lang::Strings::CONNECTING);

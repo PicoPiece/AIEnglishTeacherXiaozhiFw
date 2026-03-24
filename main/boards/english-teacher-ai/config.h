@@ -50,4 +50,10 @@
 #define BATTERY_ADC_PIN         GPIO_NUM_18   // IO18, battery voltage divider
 #define CHARGE_DETECT_PIN       GPIO_NUM_47   // IO47, charge status from FM5327
 
+// Brightness defaults
+#define DEFAULT_BRIGHTNESS      20            // 20% default brightness
+#define BRIGHTNESS_DAY          25            // Daytime brightness (07:00-18:00)
+#define BRIGHTNESS_EVENING      15            // Evening brightness (18:00-22:00)
+#define BRIGHTNESS_NIGHT        5             // Night brightness (22:00-07:00)
+
 #endif // _BOARD_CONFIG_H_

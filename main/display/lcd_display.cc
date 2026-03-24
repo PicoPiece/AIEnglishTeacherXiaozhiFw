@@ -286,10 +286,14 @@ MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel
 LcdDisplay::~LcdDisplay() {
     SetPreviewImage(nullptr);
     
-    // Clean up GIF controller
     if (gif_controller_) {
         gif_controller_->Stop();
         gif_controller_.reset();
+    }
+
+    if (idle_emoji_timer_ != nullptr) {
+        esp_timer_stop(idle_emoji_timer_);
+        esp_timer_delete(idle_emoji_timer_);
     }
     
     if (preview_timer_ != nullptr) {
@@ -496,6 +500,17 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_text_color(emoji_label_, lvgl_theme->text_color(), 0);
     lv_label_set_text(emoji_label_, "");
     lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
+
+    esp_timer_create_args_t idle_timer_args = {
+        .callback = [](void* arg) {
+            auto display = static_cast<LcdDisplay*>(arg);
+            display->EnterEmojiIdleMode();
+        },
+        .arg = this,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "idle_emoji",
+    };
+    esp_timer_create(&idle_timer_args, &idle_emoji_timer_);
 }
 #if CONFIG_IDF_TARGET_ESP32P4
 #define  MAX_MESSAGES 40
@@ -554,12 +569,14 @@ void LcdDisplay::SetChatMessage(const char* role, const char* content) {
             }
         }
     } else {
-        // Hide the centered AI logo
-        lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
+        ExitEmojiIdleMode();
     }
 
-    // Avoid empty message boxes
+    // System message with empty content = entering idle
     if(strlen(content) == 0) {
+        if (strcmp(role, "system") == 0) {
+            StartIdleEmojiTimer();
+        }
         return;
     }
 
@@ -1065,7 +1082,31 @@ void LcdDisplay::ClearChatMessages() {
 #endif
 
 void LcdDisplay::SetEmotion(const char* emotion) {
-    (void)emotion;
+    DisplayLockGuard lock(this);
+    if (emoji_image_ == nullptr || current_theme_ == nullptr) {
+        return;
+    }
+
+    auto lvgl_theme = static_cast<LvglTheme*>(current_theme_);
+    auto emoji_collection = lvgl_theme->emoji_collection();
+    if (emoji_collection == nullptr) {
+        return;
+    }
+
+    const LvglImage* image = emoji_collection->GetEmojiImage(emotion);
+    if (image == nullptr) {
+        image = emoji_collection->GetEmojiImage("neutral");
+    }
+
+    if (image != nullptr) {
+        lv_image_set_src(emoji_image_, image->image_dsc());
+        lv_image_set_scale(emoji_image_, 512);
+        lv_obj_center(emoji_image_);
+        lv_obj_clear_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
+        if (emoji_label_ != nullptr) {
+            lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
 }
 
 void LcdDisplay::ScrollChatBy(int dy) {
@@ -1077,6 +1118,118 @@ void LcdDisplay::ScrollChatBy(int dy) {
 #else
     (void)dy;
 #endif
+}
+
+void LcdDisplay::SetStatus(const char* status) {
+    if (status != nullptr && strlen(status) > 0) {
+        if (strcmp(status, Lang::Strings::CONNECTING) == 0 ||
+            strcmp(status, Lang::Strings::LISTENING) == 0 ||
+            strcmp(status, Lang::Strings::SPEAKING) == 0) {
+            CancelIdleEmojiTimer();
+            DisplayLockGuard lock(this);
+            if (emoji_idle_mode_) {
+                emoji_idle_mode_ = false;
+                StopEmojiBreathingAnimation();
+                if (emoji_image_ != nullptr) {
+                    lv_obj_add_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
+                }
+                lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
+#if CONFIG_USE_WECHAT_MESSAGE_STYLE
+                if (content_ != nullptr) {
+                    lv_obj_clear_flag(content_, LV_OBJ_FLAG_HIDDEN);
+                }
+#endif
+            }
+        }
+    }
+    LvglDisplay::SetStatus(status);
+}
+
+void LcdDisplay::StartIdleEmojiTimer() {
+    if (idle_emoji_timer_ == nullptr) return;
+    esp_timer_stop(idle_emoji_timer_);
+    esp_timer_start_once(idle_emoji_timer_, IDLE_EMOJI_DELAY_MS * 1000ULL);
+}
+
+void LcdDisplay::CancelIdleEmojiTimer() {
+    if (idle_emoji_timer_ == nullptr) return;
+    esp_timer_stop(idle_emoji_timer_);
+}
+
+void LcdDisplay::EnterEmojiIdleMode() {
+    DisplayLockGuard lock(this);
+    if (emoji_idle_mode_) return;
+    emoji_idle_mode_ = true;
+
+#if CONFIG_USE_WECHAT_MESSAGE_STYLE
+    if (content_ != nullptr) {
+        lv_obj_add_flag(content_, LV_OBJ_FLAG_HIDDEN);
+    }
+#endif
+
+    if (emoji_image_ != nullptr && current_theme_ != nullptr) {
+        auto theme = static_cast<LvglTheme*>(current_theme_);
+        auto ec = theme->emoji_collection();
+        if (ec != nullptr) {
+            const LvglImage* img = ec->GetEmojiImage("neutral");
+            if (img != nullptr) {
+                lv_image_set_src(emoji_image_, img->image_dsc());
+                lv_image_set_scale(emoji_image_, 512);
+                lv_obj_center(emoji_image_);
+                lv_obj_clear_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
+                StartEmojiBreathingAnimation();
+            }
+        }
+    }
+    lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
+    ESP_LOGI(TAG, "Entered emoji idle mode");
+}
+
+void LcdDisplay::ExitEmojiIdleMode() {
+    CancelIdleEmojiTimer();
+    if (!emoji_idle_mode_) {
+        if (emoji_image_ != nullptr) {
+            lv_obj_add_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
+        }
+        lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+    emoji_idle_mode_ = false;
+    StopEmojiBreathingAnimation();
+    if (emoji_image_ != nullptr) {
+        lv_obj_add_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
+    }
+    lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
+#if CONFIG_USE_WECHAT_MESSAGE_STYLE
+    if (content_ != nullptr) {
+        lv_obj_clear_flag(content_, LV_OBJ_FLAG_HIDDEN);
+    }
+#endif
+    ESP_LOGI(TAG, "Exited emoji idle mode");
+}
+
+static void emoji_scale_anim_cb(void* var, int32_t value) {
+    lv_image_set_scale(static_cast<lv_obj_t*>(var), (uint32_t)value);
+}
+
+void LcdDisplay::StartEmojiBreathingAnimation() {
+    if (emoji_image_ == nullptr) return;
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, emoji_image_);
+    lv_anim_set_values(&a, 460, 560);
+    lv_anim_set_duration(&a, 2000);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_playback_duration(&a, 2000);
+    lv_anim_set_exec_cb(&a, emoji_scale_anim_cb);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+    lv_anim_start(&a);
+}
+
+void LcdDisplay::StopEmojiBreathingAnimation() {
+    if (emoji_image_ == nullptr) return;
+    lv_anim_delete(emoji_image_, emoji_scale_anim_cb);
+    lv_image_set_scale(emoji_image_, 512);
 }
 
 void LcdDisplay::SetTheme(Theme* theme) {

@@ -9,11 +9,13 @@
 #include "adc_battery_monitor.h"
 
 #include <esp_log.h>
+#include <esp_timer.h>
 #include <driver/i2c_master.h>
 #include <driver/spi_common.h>
 #include <esp_lcd_panel_io.h>
 #include <esp_lcd_panel_ops.h>
 #include <esp_lcd_panel_vendor.h>
+#include <ctime>
 
 #define TAG "EnglishTeacherAI"
 
@@ -25,6 +27,8 @@ private:
     Button volume_down_button_;
     LcdDisplay* display_ = nullptr;
     AdcBatteryMonitor* battery_monitor_ = nullptr;
+    esp_timer_handle_t brightness_timer_ = nullptr;
+    uint8_t last_auto_brightness_ = 0;
 
     void InitializeI2c() {
         i2c_master_bus_config_t i2c_bus_cfg = {
@@ -86,6 +90,45 @@ private:
                                      DISPLAY_SWAP_XY);
     }
 
+    uint8_t GetBrightnessForCurrentTime() {
+        time_t now = time(NULL);
+        struct tm* tm = localtime(&now);
+        if (tm->tm_year < 2025 - 1900) {
+            return DEFAULT_BRIGHTNESS;
+        }
+        int hour = tm->tm_hour;
+        if (hour >= 7 && hour < 18) return BRIGHTNESS_DAY;
+        if (hour >= 18 && hour < 22) return BRIGHTNESS_EVENING;
+        return BRIGHTNESS_NIGHT;
+    }
+
+    void UpdateAdaptiveBrightness() {
+        uint8_t target = GetBrightnessForCurrentTime();
+        if (target != last_auto_brightness_) {
+            last_auto_brightness_ = target;
+            GetBacklight()->SetBrightness(target);
+            ESP_LOGI(TAG, "Adaptive brightness: %d%%", target);
+        }
+    }
+
+    void InitializeAdaptiveBrightness() {
+        last_auto_brightness_ = DEFAULT_BRIGHTNESS;
+        GetBacklight()->SetBrightness(DEFAULT_BRIGHTNESS, true);
+
+        esp_timer_create_args_t timer_args = {
+            .callback = [](void* arg) {
+                auto self = static_cast<EnglishTeacherAiBoard*>(arg);
+                self->UpdateAdaptiveBrightness();
+            },
+            .arg = this,
+            .dispatch_method = ESP_TIMER_TASK,
+            .name = "adaptive_brightness",
+            .skip_unhandled_events = true,
+        };
+        ESP_ERROR_CHECK(esp_timer_create(&timer_args, &brightness_timer_));
+        ESP_ERROR_CHECK(esp_timer_start_periodic(brightness_timer_, 60 * 1000000));
+    }
+
     void InitializeButtons() {
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
@@ -140,7 +183,7 @@ public:
         InitializeDisplay();
         InitializeButtons();
         if (DISPLAY_BACKLIGHT_PIN != GPIO_NUM_NC) {
-            GetBacklight()->RestoreBrightness();
+            InitializeAdaptiveBrightness();
         }
         battery_monitor_ = new AdcBatteryMonitor(ADC_UNIT_2, ADC_CHANNEL_7, 100000, 100000, CHARGE_DETECT_PIN);
     }
