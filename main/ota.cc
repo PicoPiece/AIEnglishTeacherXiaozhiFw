@@ -194,16 +194,15 @@ esp_err_t Ota::CheckVersion() {
     cJSON *server_time = cJSON_GetObjectItem(root, "server_time");
     if (cJSON_IsObject(server_time)) {
         cJSON *timestamp = cJSON_GetObjectItem(server_time, "timestamp");
-        cJSON *timezone_offset = cJSON_GetObjectItem(server_time, "timezone_offset");
         
         if (cJSON_IsNumber(timestamp)) {
-            // 设置系统时间
             struct timeval tv;
             double ts = timestamp->valuedouble;
             
 #if defined(CONFIG_TIMEZONE_OFFSET_MINUTES) && CONFIG_TIMEZONE_OFFSET_MINUTES >= 0
             ts += ((double)CONFIG_TIMEZONE_OFFSET_MINUTES * 60 * 1000);
 #else
+            cJSON *timezone_offset = cJSON_GetObjectItem(server_time, "timezone_offset");
             if (cJSON_IsNumber(timezone_offset)) {
                 ts += (timezone_offset->valueint * 60 * 1000);
             }

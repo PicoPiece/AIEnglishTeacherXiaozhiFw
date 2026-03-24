@@ -6,6 +6,7 @@
 #include "config.h"
 #include "led/single_led.h"
 #include "assets/lang_config.h"
+#include "adc_battery_monitor.h"
 
 #include <esp_log.h>
 #include <driver/i2c_master.h>
@@ -23,6 +24,7 @@ private:
     Button volume_up_button_;
     Button volume_down_button_;
     LcdDisplay* display_ = nullptr;
+    AdcBatteryMonitor* battery_monitor_ = nullptr;
 
     void InitializeI2c() {
         i2c_master_bus_config_t i2c_bus_cfg = {
@@ -140,6 +142,7 @@ public:
         if (DISPLAY_BACKLIGHT_PIN != GPIO_NUM_NC) {
             GetBacklight()->RestoreBrightness();
         }
+        battery_monitor_ = new AdcBatteryMonitor(ADC_UNIT_2, ADC_CHANNEL_7, 100000, 100000, CHARGE_DETECT_PIN);
     }
 
     virtual Led* GetLed() override {
@@ -167,6 +170,14 @@ public:
             return &backlight;
         }
         return nullptr;
+    }
+
+    virtual bool GetBatteryLevel(int& level, bool& charging, bool& discharging) override {
+        if (battery_monitor_ == nullptr) return false;
+        charging = battery_monitor_->IsCharging();
+        discharging = battery_monitor_->IsDischarging();
+        level = battery_monitor_->GetBatteryLevel();
+        return true;
     }
 };
 
