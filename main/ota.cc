@@ -127,6 +127,11 @@ esp_err_t Ota::CheckVersion() {
         if (cJSON_IsString(message)) {
             activation_message_ = message->valuestring;
         }
+#ifdef CONFIG_ACTIVATION_URL
+        if (strlen(CONFIG_ACTIVATION_URL) > 0) {
+            activation_message_ = CONFIG_ACTIVATION_URL;
+        }
+#endif
         cJSON* code = cJSON_GetObjectItem(activation, "code");
         if (cJSON_IsString(code)) {
             activation_code_ = code->valuestring;

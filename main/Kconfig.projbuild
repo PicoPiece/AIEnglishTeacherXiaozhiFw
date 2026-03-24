@@ -6,6 +6,12 @@ config OTA_URL
     help
         The application will access this URL to check for new firmwares and server address.
 
+config ACTIVATION_URL
+    string "Activation URL shown on LCD"
+    default "https://aietadmin.picopiece.com"
+    help
+        URL displayed on the LCD during device activation. Overrides the server-provided URL.
+
 choice
     prompt "Flash Assets"
     default FLASH_DEFAULT_ASSETS if !USE_EMOTE_MESSAGE_STYLE
