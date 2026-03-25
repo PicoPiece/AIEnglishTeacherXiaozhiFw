@@ -8,6 +8,7 @@
 #include "assets/lang_config.h"
 #include "adc_battery_monitor.h"
 #include "audio/music_player.h"
+#include "mcp_server.h"
 
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -173,6 +174,50 @@ private:
         music_player_->SetStopCallback([this]() {
             GetDisplay()->ShowNotification("Music stopped", 2000);
         });
+        RegisterMusicMcpTools();
+    }
+
+    void RegisterMusicMcpTools() {
+        auto& mcp = McpServer::GetInstance();
+
+        mcp.AddTool("self.list_sd_music",
+            "List all music files on the SD card. Returns a JSON array of objects with path, name, and size fields.",
+            PropertyList(),
+            [this](const PropertyList& properties) -> ReturnValue {
+                auto files = MusicPlayer::ListMusicFiles(SD_MOUNT_POINT);
+                cJSON* arr = cJSON_CreateArray();
+                for (auto& f : files) {
+                    cJSON* item = cJSON_CreateObject();
+                    cJSON_AddStringToObject(item, "path", f.path.c_str());
+                    cJSON_AddStringToObject(item, "name", f.name.c_str());
+                    cJSON_AddNumberToObject(item, "size", f.size);
+                    cJSON_AddItemToArray(arr, item);
+                }
+                return arr;
+            });
+
+        mcp.AddTool("self.play_sd_music",
+            "Play a music file from the SD card. Stops any current playback first. "
+            "Use self.list_sd_music to get available files.",
+            PropertyList({
+                Property("filepath", kPropertyTypeString)
+            }),
+            [this](const PropertyList& properties) -> ReturnValue {
+                auto filepath = properties["filepath"].value<std::string>();
+                if (!music_player_) {
+                    return std::string("{\"status\":\"error\",\"message\":\"Music player not available\"}");
+                }
+                GetAudioCodec()->EnableOutput(true);
+                bool ok = music_player_->PlayFile(filepath);
+                if (!ok) {
+                    return std::string("{\"status\":\"error\",\"message\":\"Failed to play file\"}");
+                }
+                std::string name = music_player_->CurrentTrackName();
+                cJSON* result = cJSON_CreateObject();
+                cJSON_AddStringToObject(result, "status", "playing");
+                cJSON_AddStringToObject(result, "name", name.c_str());
+                return result;
+            });
     }
 
     void InitializeButtons() {

@@ -9,6 +9,12 @@
 
 class AudioCodec;
 
+struct MusicFileInfo {
+    std::string path;
+    std::string name;
+    long size;
+};
+
 class MusicPlayer {
 public:
     using TrackInfoCallback = std::function<void(const std::string& name, int index, int total)>;
@@ -18,6 +24,7 @@ public:
     ~MusicPlayer();
 
     bool Start(const char* mount_point = "/sdcard");
+    bool PlayFile(const std::string& filepath);
     void Stop();
     void NextTrack();
     void PrevTrack();
@@ -27,11 +34,14 @@ public:
     int CurrentTrackIndex() const { return current_track_; }
     std::string CurrentTrackName() const;
 
+    static std::vector<MusicFileInfo> ListMusicFiles(const char* base_path);
+    static bool HasAudioExtension(const char* name);
+
     void SetTrackInfoCallback(TrackInfoCallback cb) { track_info_cb_ = cb; }
     void SetStopCallback(StopCallback cb) { stop_cb_ = cb; }
 
 private:
-    void ScanMp3Files(const char* base_path);
+    void ScanMusicFiles(const char* base_path);
     void PlaybackTask();
     static void PlaybackTaskEntry(void* arg);
     void NotifyTrackInfo();

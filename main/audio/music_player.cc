@@ -24,21 +24,26 @@ MusicPlayer::~MusicPlayer() {
     Stop();
 }
 
-static bool HasMp3Extension(const char* name) {
+bool MusicPlayer::HasAudioExtension(const char* name) {
     size_t len = strlen(name);
     if (len < 4) return false;
-    const char* ext = name + len - 4;
-    return (strcasecmp(ext, ".mp3") == 0);
+    const char* dot = strrchr(name, '.');
+    if (!dot) return false;
+    return (strcasecmp(dot, ".mp3") == 0 ||
+            strcasecmp(dot, ".wav") == 0 ||
+            strcasecmp(dot, ".ogg") == 0 ||
+            strcasecmp(dot, ".m4a") == 0);
 }
 
 static std::string FilenameFromPath(const std::string& path) {
     auto pos = path.rfind('/');
     std::string name = (pos != std::string::npos) ? path.substr(pos + 1) : path;
-    if (name.size() > 4) name.resize(name.size() - 4);
+    auto dot = name.rfind('.');
+    if (dot != std::string::npos) name.resize(dot);
     return name;
 }
 
-void MusicPlayer::ScanMp3Files(const char* base_path) {
+void MusicPlayer::ScanMusicFiles(const char* base_path) {
     DIR* dir = opendir(base_path);
     if (!dir) return;
 
@@ -47,13 +52,45 @@ void MusicPlayer::ScanMp3Files(const char* base_path) {
         if (entry->d_type == DT_DIR) {
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
             std::string subdir = std::string(base_path) + "/" + entry->d_name;
-            ScanMp3Files(subdir.c_str());
-        } else if (HasMp3Extension(entry->d_name)) {
+            ScanMusicFiles(subdir.c_str());
+        } else if (HasAudioExtension(entry->d_name)) {
             std::string filepath = std::string(base_path) + "/" + entry->d_name;
             playlist_.push_back(filepath);
         }
     }
     closedir(dir);
+}
+
+static void ScanMusicFilesRecursive(const char* base_path, std::vector<MusicFileInfo>& out) {
+    DIR* dir = opendir(base_path);
+    if (!dir) return;
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+            std::string subdir = std::string(base_path) + "/" + entry->d_name;
+            ScanMusicFilesRecursive(subdir.c_str(), out);
+        } else if (MusicPlayer::HasAudioExtension(entry->d_name)) {
+            std::string filepath = std::string(base_path) + "/" + entry->d_name;
+            struct stat st;
+            long file_size = 0;
+            if (stat(filepath.c_str(), &st) == 0) {
+                file_size = st.st_size;
+            }
+            out.push_back({filepath, FilenameFromPath(filepath), file_size});
+        }
+    }
+    closedir(dir);
+}
+
+std::vector<MusicFileInfo> MusicPlayer::ListMusicFiles(const char* base_path) {
+    std::vector<MusicFileInfo> files;
+    ScanMusicFilesRecursive(base_path, files);
+    std::sort(files.begin(), files.end(), [](const MusicFileInfo& a, const MusicFileInfo& b) {
+        return a.path < b.path;
+    });
+    return files;
 }
 
 std::string MusicPlayer::CurrentTrackName() const {
@@ -73,15 +110,15 @@ bool MusicPlayer::Start(const char* mount_point) {
     if (playing_) return true;
 
     playlist_.clear();
-    ScanMp3Files(mount_point);
+    ScanMusicFiles(mount_point);
 
     if (playlist_.empty()) {
-        ESP_LOGW(TAG, "No MP3 files found on SD card");
+        ESP_LOGW(TAG, "No music files found on SD card");
         return false;
     }
 
     std::sort(playlist_.begin(), playlist_.end());
-    ESP_LOGI(TAG, "Found %d MP3 files", (int)playlist_.size());
+    ESP_LOGI(TAG, "Found %d music files", (int)playlist_.size());
     for (auto& f : playlist_) {
         ESP_LOGI(TAG, "  %s", f.c_str());
     }
@@ -93,6 +130,24 @@ bool MusicPlayer::Start(const char* mount_point) {
     stop_requested_ = false;
     skip_requested_ = false;
     playing_ = true;
+
+    xTaskCreate(PlaybackTaskEntry, "music_play", PLAYBACK_STACK_SIZE, this, 3, &task_handle_);
+    return true;
+}
+
+bool MusicPlayer::PlayFile(const std::string& filepath) {
+    Stop();
+
+    playlist_.clear();
+    playlist_.push_back(filepath);
+    current_track_ = 0;
+
+    stop_requested_ = false;
+    skip_requested_ = false;
+    playing_ = true;
+
+    ESP_LOGI(TAG, "Playing file: %s", filepath.c_str());
+    NotifyTrackInfo();
 
     xTaskCreate(PlaybackTaskEntry, "music_play", PLAYBACK_STACK_SIZE, this, 3, &task_handle_);
     return true;
@@ -162,12 +217,27 @@ void MusicPlayer::PlaybackTask() {
             continue;
         }
 
+        esp_audio_simple_dec_type_t dec_type = ESP_AUDIO_SIMPLE_DEC_TYPE_MP3;
+        const char* dot = strrchr(filepath.c_str(), '.');
+        if (dot) {
+            if (strcasecmp(dot, ".wav") == 0) dec_type = ESP_AUDIO_SIMPLE_DEC_TYPE_WAV;
+            else if (strcasecmp(dot, ".m4a") == 0) dec_type = ESP_AUDIO_SIMPLE_DEC_TYPE_M4A;
+            else if (strcasecmp(dot, ".ogg") == 0) dec_type = ESP_AUDIO_SIMPLE_DEC_TYPE_NONE;
+        }
+        if (dec_type == ESP_AUDIO_SIMPLE_DEC_TYPE_NONE) {
+            ESP_LOGW(TAG, "Unsupported format: %s, skipping", filepath.c_str());
+            fclose(fp);
+            if (!skip_requested_ && !stop_requested_) {
+                current_track_ = (current_track_ + 1) % (int)playlist_.size();
+            }
+            continue;
+        }
         esp_audio_simple_dec_cfg_t dec_cfg = {};
-        dec_cfg.dec_type = ESP_AUDIO_SIMPLE_DEC_TYPE_MP3;
+        dec_cfg.dec_type = dec_type;
         esp_audio_simple_dec_handle_t decoder = nullptr;
         esp_audio_err_t ret = esp_audio_simple_dec_open(&dec_cfg, &decoder);
         if (ret != ESP_AUDIO_ERR_OK || !decoder) {
-            ESP_LOGE(TAG, "Failed to open MP3 decoder: %d", ret);
+            ESP_LOGE(TAG, "Failed to open decoder: %d", ret);
             fclose(fp);
             break;
         }
@@ -211,7 +281,7 @@ void MusicPlayer::PlaybackTask() {
                         src_rate = info.sample_rate;
                         src_channels = info.channel;
                         info_ready = true;
-                        ESP_LOGI(TAG, "MP3: %luHz %dch %dbps",
+                        ESP_LOGI(TAG, "Audio: %luHz %dch %dbps",
                                  (unsigned long)src_rate, src_channels, info.bits_per_sample);
 
                         if ((int)src_rate != target_rate) {
