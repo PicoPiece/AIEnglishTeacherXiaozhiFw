@@ -7,6 +7,7 @@
 #include "led/single_led.h"
 #include "assets/lang_config.h"
 #include "adc_battery_monitor.h"
+#include "audio/music_player.h"
 
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -15,6 +16,9 @@
 #include <esp_lcd_panel_io.h>
 #include <esp_lcd_panel_ops.h>
 #include <esp_lcd_panel_vendor.h>
+#include <esp_vfs_fat.h>
+#include <sdmmc_cmd.h>
+#include <driver/sdmmc_host.h>
 #include <ctime>
 
 #define TAG "EnglishTeacherAI"
@@ -29,6 +33,8 @@ private:
     AdcBatteryMonitor* battery_monitor_ = nullptr;
     esp_timer_handle_t brightness_timer_ = nullptr;
     uint8_t last_auto_brightness_ = 0;
+    MusicPlayer* music_player_ = nullptr;
+    bool sd_card_mounted_ = false;
 
     void InitializeI2c() {
         i2c_master_bus_config_t i2c_bus_cfg = {
@@ -129,6 +135,46 @@ private:
         ESP_ERROR_CHECK(esp_timer_start_periodic(brightness_timer_, 60 * 1000000));
     }
 
+    void InitializeSdCard() {
+        sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+        host.flags = SDMMC_HOST_FLAG_1BIT;
+        sdmmc_slot_config_t slot = SDMMC_SLOT_CONFIG_DEFAULT();
+        slot.width = 1;
+        slot.clk = SD_CLK_PIN;
+        slot.cmd = SD_CMD_PIN;
+        slot.d0  = SD_D0_PIN;
+        slot.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
+
+        esp_vfs_fat_sdmmc_mount_config_t mount_cfg = {
+            .format_if_mount_failed = false,
+            .max_files = 5,
+            .allocation_unit_size = 0,
+            .disk_status_check_enable = true,
+        };
+        sdmmc_card_t* card = nullptr;
+        esp_err_t ret = esp_vfs_fat_sdmmc_mount(SD_MOUNT_POINT, &host, &slot, &mount_cfg, &card);
+        if (ret == ESP_OK) {
+            sdmmc_card_print_info(stdout, card);
+            ESP_LOGI(TAG, "SD card mounted at %s", SD_MOUNT_POINT);
+            sd_card_mounted_ = true;
+        } else {
+            ESP_LOGW(TAG, "SD card mount failed: %s", esp_err_to_name(ret));
+        }
+    }
+
+    void InitializeMusicPlayer() {
+        if (!sd_card_mounted_) return;
+        music_player_ = new MusicPlayer(GetAudioCodec());
+        music_player_->SetTrackInfoCallback([this](const std::string& name, int idx, int total) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "♪ %s (%d/%d)", name.c_str(), idx, total);
+            GetDisplay()->ShowNotification(buf, 5000);
+        });
+        music_player_->SetStopCallback([this]() {
+            GetDisplay()->ShowNotification("Music stopped", 2000);
+        });
+    }
+
     void InitializeButtons() {
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
@@ -136,12 +182,41 @@ private:
                 EnterWifiConfigMode();
                 return;
             }
+            if (music_player_ && music_player_->IsPlaying()) {
+                music_player_->Stop();
+            }
             app.ToggleChatState();
+        });
+
+        boot_button_.OnDoubleClick([this]() {
+            if (!music_player_) return;
+            if (music_player_->IsPlaying()) {
+                music_player_->Stop();
+            } else {
+                auto& app = Application::GetInstance();
+                if (app.GetDeviceState() == kDeviceStateListening ||
+                    app.GetDeviceState() == kDeviceStateSpeaking) {
+                    return;
+                }
+                GetAudioCodec()->EnableOutput(true);
+                music_player_->Start(SD_MOUNT_POINT);
+            }
+        });
+
+        boot_button_.OnLongPress([this]() {
+            if (music_player_ && music_player_->IsPlaying()) {
+                music_player_->Stop();
+            }
+            EnterWifiConfigMode();
         });
 
         volume_up_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
             if (app.GetDeviceState() == kDeviceStateStarting) {
+                return;
+            }
+            if (music_player_ && music_player_->IsPlaying()) {
+                music_player_->NextTrack();
                 return;
             }
             GetDisplay()->ScrollChatBy(40);
@@ -160,6 +235,10 @@ private:
             if (app.GetDeviceState() == kDeviceStateStarting) {
                 return;
             }
+            if (music_player_ && music_player_->IsPlaying()) {
+                music_player_->PrevTrack();
+                return;
+            }
             GetDisplay()->ScrollChatBy(-40);
         });
 
@@ -174,18 +253,20 @@ private:
 
 public:
     EnglishTeacherAiBoard() :
-        boot_button_(BOOT_BUTTON_GPIO),
+        boot_button_(BOOT_BUTTON_GPIO, false, 8000),
         volume_up_button_(VOLUME_UP_BUTTON_GPIO),
         volume_down_button_(VOLUME_DOWN_BUTTON_GPIO)
     {
         InitializeI2c();
         InitializeSpi();
         InitializeDisplay();
+        InitializeSdCard();
         InitializeButtons();
         if (DISPLAY_BACKLIGHT_PIN != GPIO_NUM_NC) {
             InitializeAdaptiveBrightness();
         }
         battery_monitor_ = new AdcBatteryMonitor(ADC_UNIT_2, ADC_CHANNEL_7, 100000, 100000, CHARGE_DETECT_PIN);
+        InitializeMusicPlayer();
     }
 
     virtual Led* GetLed() override {

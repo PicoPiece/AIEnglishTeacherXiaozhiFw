@@ -56,4 +56,10 @@
 #define BRIGHTNESS_EVENING      15            // Evening brightness (18:00-22:00)
 #define BRIGHTNESS_NIGHT        5             // Night brightness (22:00-07:00)
 
+// SD Card (SDMMC 1-bit mode) - TF-027-H300 microSD slot
+#define SD_CMD_PIN              GPIO_NUM_38   // IO38 → SD CMD/MOSI
+#define SD_CLK_PIN              GPIO_NUM_39   // IO39 → SD CLK
+#define SD_D0_PIN               GPIO_NUM_40   // IO40 → SD DAT0/MISO
+#define SD_MOUNT_POINT          "/sdcard"
+
 #endif // _BOARD_CONFIG_H_
