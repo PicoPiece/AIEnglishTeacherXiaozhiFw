@@ -2,6 +2,7 @@
 set(SOURCES "audio/audio_codec.cc"
             "audio/audio_service.cc"
             "audio/music_player.cc"
+            "audio/radio_player.cc"
             "audio/demuxer/ogg_demuxer.cc"
             "audio/codecs/no_audio_codec.cc"
             "audio/codecs/box_audio_codec.cc"
@@ -925,6 +926,7 @@ idf_component_register(SRCS ${SOURCES}
                         fatfs
                         esp_driver_sdmmc
                         sdmmc
+                        esp_http_client
                     )
 
 # Use target_compile_definitions to define BOARD_TYPE, BOARD_NAME

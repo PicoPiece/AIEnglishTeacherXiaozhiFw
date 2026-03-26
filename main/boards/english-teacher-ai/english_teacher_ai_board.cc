@@ -8,6 +8,7 @@
 #include "assets/lang_config.h"
 #include "adc_battery_monitor.h"
 #include "audio/music_player.h"
+#include "audio/radio_player.h"
 #include "mcp_server.h"
 #include "app/app_manager.h"
 #include "app/chat_app.h"
@@ -40,10 +41,12 @@ private:
     esp_timer_handle_t brightness_timer_ = nullptr;
     uint8_t last_auto_brightness_ = 0;
     MusicPlayer* music_player_ = nullptr;
+    RadioPlayer* radio_player_ = nullptr;
     bool sd_card_mounted_ = false;
     AppManager* app_manager_ = nullptr;
     ChatApp* chat_app_ = nullptr;
     MusicApp* music_app_ = nullptr;
+    RadioApp* radio_app_ = nullptr;
     MessagesApp* messages_app_ = nullptr;
 
     void InitializeI2c() {
@@ -176,6 +179,20 @@ private:
         if (!sd_card_mounted_) return;
         music_player_ = new MusicPlayer(GetAudioCodec());
         RegisterMusicMcpTools();
+    }
+
+    void InitializeRadioPlayer() {
+        radio_player_ = new RadioPlayer(GetAudioCodec());
+
+        // English learning radio stations (MP3 streams)
+        radio_player_->AddStation("NPR News",       "http://npr-ice.streamguys1.com/live.mp3",           "News");
+        radio_player_->AddStation("Classic FM",      "http://media-ice.musicradio.com/ClassicFMMP3",      "Classical");
+        radio_player_->AddStation("KEXP Seattle",    "http://live-mp3-128.kexp.org/kexp128.mp3",          "Indie");
+        radio_player_->AddStation("SomaFM Groove",   "http://ice1.somafm.com/groovesalad-128-mp3",        "Chill");
+        radio_player_->AddStation("SomaFM Secret",   "http://ice1.somafm.com/secretagent-128-mp3",        "Lounge");
+        radio_player_->AddStation("ABC News Radio",  "http://live-radio01.mediahubaustralia.com/2LRW/mp3/", "News AU");
+
+        ESP_LOGI(TAG, "RadioPlayer initialized with %d stations", radio_player_->StationCount());
     }
 
     void RegisterMusicMcpTools() {
@@ -330,17 +347,33 @@ private:
             app_manager_->RegisterApp(music_app_);
         }
 
-        app_manager_->RegisterApp(new RadioApp());
+        if (radio_player_) {
+            radio_app_ = new RadioApp(radio_player_, GetAudioCodec());
+            radio_player_->SetStationChangeCallback([this](const std::string& name, int idx, int total) {
+                if (radio_app_) {
+                    radio_app_->OnStationChanged(name, idx, total);
+                }
+            });
+            radio_player_->SetStopCallback([this]() {
+                if (radio_app_) {
+                    radio_app_->OnPlaybackStopped();
+                }
+            });
+            radio_player_->SetErrorCallback([this](const std::string& error) {
+                if (radio_app_) {
+                    radio_app_->OnStreamError(error);
+                }
+            });
+            app_manager_->RegisterApp(radio_app_);
+        }
 
         messages_app_ = new MessagesApp();
         app_manager_->RegisterApp(messages_app_);
         RegisterMessagesMcpTools();
 
-        // Auto-enter ChatApp on boot so existing UX is preserved.
-        // Menu is accessible via long-press BOOT (2s) from inside any app.
         app_manager_->AutoEnterFirstApp();
 
-        ESP_LOGI(TAG, "AppManager initialized with %d apps", (int)(music_player_ ? 4 : 3));
+        ESP_LOGI(TAG, "AppManager initialized with %d apps", app_manager_->AppCount());
     }
 
     void InitializeButtons() {
@@ -445,6 +478,7 @@ public:
         }
         battery_monitor_ = new AdcBatteryMonitor(ADC_UNIT_2, ADC_CHANNEL_7, 100000, 100000, CHARGE_DETECT_PIN);
         InitializeMusicPlayer();
+        InitializeRadioPlayer();
         InitializeAppManager();
     }
 

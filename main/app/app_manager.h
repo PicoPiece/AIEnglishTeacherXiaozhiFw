@@ -19,6 +19,7 @@ public:
 
     bool InMenu() const { return active_app_ == nullptr; }
     AppBase* GetActiveApp() { return active_app_; }
+    int AppCount() const { return (int)apps_.size(); }
 
     void OnButtonClick();
     void OnButtonDoubleClick();

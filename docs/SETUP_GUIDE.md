@@ -2,7 +2,7 @@
 
 ## Overview
 
-EnglishTeacherAI is an AI-powered English learning device built on the AI-VOX3 board (ESP32-S3). It features voice conversation with an AI English teacher, an SD card music player, a message inbox, and a placeholder for internet radio — all accessible through a multi-app menu system on a 240x240 LCD display.
+EnglishTeacherAI is an AI-powered English learning device built on the AI-VOX3 board (ESP32-S3). It features voice conversation with an AI English teacher, an SD card music player, internet radio streaming (English stations), and a message inbox — all accessible through a multi-app menu system on a 240x240 LCD display.
 
 **Server:** `https://aietadmin.picopiece.com`
 
@@ -97,10 +97,20 @@ EnglishTeacherAI is an AI-powered English learning device built on the AI-VOX3 b
 - 4 play modes: Sequential, Repeat All (default), Repeat One, Shuffle
 - Supports long filenames (FATFS LFN enabled)
 
-### 3. Radio (RadioApp)
+### 3. Internet Radio (RadioApp)
 
-- Placeholder for future internet radio streaming
-- Displays "Coming Soon" screen
+- Stream English-language internet radio stations via HTTP MP3
+- Pre-loaded stations focused on English learning (news, talk, music):
+  - NPR News (24/7 US English news)
+  - Classic FM (UK classical music)
+  - KEXP Seattle (indie/alternative)
+  - SomaFM Groove Salad (ambient/chill)
+  - SomaFM Secret Agent (lounge)
+  - ABC News Radio (Australian English news)
+- Station list UI with genre tags
+- Now Playing screen with station name and status
+- Auto-reconnect on stream interruption
+- VOL+/VOL- to switch stations while streaming
 
 ### 4. Messages (MessagesApp)
 
@@ -194,9 +204,23 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 | VOL+/VOL- | Scroll message content |
 | BOOT double-click | Back to message list |
 
-### RadioApp
+### RadioApp (Internet Radio)
 
-Placeholder — no interactive controls yet.
+**Station List:**
+
+| Action | What it does |
+|--------|-------------|
+| VOL+/VOL- | Move selection up/down |
+| BOOT click | Start streaming selected station |
+
+**Now Playing:**
+
+| Action | What it does |
+|--------|-------------|
+| BOOT click | Stop streaming, return to station list |
+| VOL+ click | Switch to previous station |
+| VOL- click | Switch to next station |
+| BOOT double-click | Stop streaming, return to station list |
 
 ---
 
@@ -354,10 +378,12 @@ EnglishTeacherAiBoard (english_teacher_ai_board.cc)
 ├── AppManager (app_manager.cc)
 │   ├── ChatApp        — AI English conversation (wraps Application singleton)
 │   ├── MusicApp       — SD card music player with folder browser
-│   ├── RadioApp       — Placeholder for internet radio
+│   ├── RadioApp       — Internet radio streaming (HTTP MP3)
 │   └── MessagesApp    — Server message inbox
 ├── MusicPlayer (music_player.cc)
 │   └── FreeRTOS playback task, audio decode, resampling
+├── RadioPlayer (radio_player.cc)
+│   └── HTTP MP3 streaming, auto-reconnect, station management
 ├── LcdDisplay (lcd_display.cc)
 │   └── LVGL UI: chat bubbles, emoji, app UIs
 └── Hardware
@@ -379,7 +405,8 @@ EnglishTeacherAiBoard (english_teacher_ai_board.cc)
 | `main/app/app_manager.h/.cc` | Menu UI, app lifecycle, navigation |
 | `main/app/chat_app.h/.cc` | AI chat wrapper |
 | `main/app/music_app.h/.cc` | Music player with file browser |
-| `main/app/radio_app.h/.cc` | Radio placeholder |
+| `main/app/radio_app.h/.cc` | Internet radio with station list |
 | `main/app/messages_app.h/.cc` | Message inbox |
 | `main/audio/music_player.h/.cc` | Audio playback engine |
+| `main/audio/radio_player.h/.cc` | HTTP MP3 streaming engine |
 | `main/display/lcd_display.h/.cc` | LVGL display driver and UI |
