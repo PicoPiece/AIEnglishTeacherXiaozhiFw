@@ -24,6 +24,8 @@ void AppManager::ShowMenu() {
         active_app_->OnExit();
         active_app_ = nullptr;
     }
+    display_->HideChatUI();
+    menu_selection_ = 0;
     CreateMenuUI();
     ESP_LOGI(TAG, "Menu shown with %d apps", static_cast<int>(apps_.size()));
 }
@@ -33,6 +35,8 @@ void AppManager::ReturnToMenu() {
         active_app_->OnExit();
         active_app_ = nullptr;
     }
+    display_->HideChatUI();
+    menu_selection_ = 0;
     CreateMenuUI();
     ESP_LOGI(TAG, "Returned to menu");
 }
@@ -40,7 +44,8 @@ void AppManager::ReturnToMenu() {
 void AppManager::AutoEnterFirstApp() {
     if (apps_.empty()) return;
     active_app_ = apps_[0];
-    ESP_LOGI(TAG, "Auto-entered app: %s (deferred OnEnter until display ready)", active_app_->GetName());
+    active_app_->OnEnter(display_);
+    ESP_LOGI(TAG, "Auto-entered app: %s", active_app_->GetName());
 }
 
 void AppManager::SelectApp(int index) {

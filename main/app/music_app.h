@@ -38,6 +38,7 @@ private:
     void ShowNowPlaying();
     void DestroyUI();
     void UpdateHighlight();
+    void UpdateModeLabel();
 
     MusicPlayer* player_;
     AudioCodec* codec_;
@@ -52,6 +53,7 @@ private:
 
     lv_obj_t* ui_container_ = nullptr;
     lv_obj_t* title_label_ = nullptr;
+    lv_obj_t* mode_label_ = nullptr;
     std::vector<lv_obj_t*> list_items_;
 
     std::string now_playing_name_;

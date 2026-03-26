@@ -77,6 +77,7 @@ void MusicApp::DestroyUI() {
     }
     ui_container_ = nullptr;
     title_label_ = nullptr;
+    mode_label_ = nullptr;
     list_items_.clear();
 }
 
@@ -235,7 +236,7 @@ void MusicApp::ShowNowPlaying() {
     lv_obj_t* icon = lv_label_create(ui_container_);
     lv_label_set_text(icon, "Now Playing");
     lv_obj_set_style_text_color(icon, lv_color_hex(0xe94560), 0);
-    lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 8);
 
     title_label_ = lv_label_create(ui_container_);
     char buf[128];
@@ -245,12 +246,26 @@ void MusicApp::ShowNowPlaying() {
     lv_label_set_long_mode(title_label_, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_set_style_text_color(title_label_, lv_color_hex(0xeaeaea), 0);
     lv_obj_set_style_text_align(title_label_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(title_label_, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_align(title_label_, LV_ALIGN_CENTER, 0, -10);
+
+    mode_label_ = lv_label_create(ui_container_);
+    lv_label_set_text(mode_label_, PlayModeName(player_->GetPlayMode()));
+    lv_obj_set_width(mode_label_, 220);
+    lv_obj_set_style_text_color(mode_label_, lv_color_hex(0x53c28b), 0);
+    lv_obj_set_style_text_align(mode_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(mode_label_, LV_ALIGN_CENTER, 0, 30);
 
     lv_obj_t* hint = lv_label_create(ui_container_);
-    lv_label_set_text(hint, "VOL: Prev/Next  x2: Back");
+    lv_label_set_text(hint, "BOOT:Mode VOL:Prev/Next");
     lv_obj_set_style_text_color(hint, lv_color_hex(0x888888), 0);
-    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -8);
+}
+
+void MusicApp::UpdateModeLabel() {
+    if (mode_label_ && display_ && player_) {
+        DisplayLockGuard lock(display_);
+        lv_label_set_text(mode_label_, PlayModeName(player_->GetPlayMode()));
+    }
 }
 
 void MusicApp::UpdateHighlight() {
@@ -276,23 +291,28 @@ void MusicApp::OnButtonClick() {
             ShowBrowse();
         } else {
             if (player_ && codec_) {
-                codec_->EnableOutput(true);
-                player_->PlayFile(entry_paths_[selection_]);
-                now_playing_name_ = entry_names_[selection_];
-                auto dot = now_playing_name_.rfind('.');
-                if (dot != std::string::npos) {
-                    now_playing_name_.resize(dot);
+                // Build playlist from all audio files in current view
+                std::vector<std::string> playlist;
+                int start_idx = 0;
+                for (int i = 0; i < (int)entry_paths_.size(); i++) {
+                    if (!entry_is_dir_[i]) {
+                        if (i == selection_) start_idx = (int)playlist.size();
+                        playlist.push_back(entry_paths_[i]);
+                    }
                 }
-                now_playing_index_ = 1;
-                now_playing_total_ = 1;
+                codec_->EnableOutput(true);
+                player_->StartPlaylist(playlist, start_idx);
+                now_playing_name_ = player_->CurrentTrackName();
+                now_playing_index_ = start_idx + 1;
+                now_playing_total_ = (int)playlist.size();
                 ShowNowPlaying();
             }
         }
     } else if (current_screen_ == Screen::kNowPlaying) {
-        if (player_ && player_->IsPlaying()) {
-            player_->Stop();
+        if (player_) {
+            player_->CyclePlayMode();
+            UpdateModeLabel();
         }
-        ShowBrowse();
     }
 }
 

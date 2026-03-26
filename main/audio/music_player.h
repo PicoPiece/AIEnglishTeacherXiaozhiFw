@@ -15,6 +15,24 @@ struct MusicFileInfo {
     long size;
 };
 
+enum class PlayMode {
+    kSequential,
+    kRepeatAll,
+    kRepeatOne,
+    kShuffle,
+    kCount,
+};
+
+inline const char* PlayModeName(PlayMode mode) {
+    switch (mode) {
+        case PlayMode::kSequential: return "Sequential";
+        case PlayMode::kRepeatAll:  return "Repeat All";
+        case PlayMode::kRepeatOne:  return "Repeat One";
+        case PlayMode::kShuffle:    return "Shuffle";
+        default:                    return "Unknown";
+    }
+}
+
 class MusicPlayer {
 public:
     using TrackInfoCallback = std::function<void(const std::string& name, int index, int total)>;
@@ -24,6 +42,7 @@ public:
     ~MusicPlayer();
 
     bool Start(const char* mount_point = "/sdcard");
+    bool StartPlaylist(const std::vector<std::string>& files, int start_index = 0);
     bool PlayFile(const std::string& filepath);
     void Stop();
     void NextTrack();
@@ -32,6 +51,10 @@ public:
     void Resume();
     bool IsPlaying() const { return playing_; }
     bool IsPaused() const { return paused_; }
+
+    PlayMode GetPlayMode() const { return play_mode_; }
+    void SetPlayMode(PlayMode mode) { play_mode_ = mode; }
+    void CyclePlayMode();
 
     int TrackCount() const { return (int)playlist_.size(); }
     int CurrentTrackIndex() const { return current_track_; }
@@ -47,6 +70,7 @@ public:
 
 private:
     void ScanMusicFiles(const char* base_path);
+    int PickNextTrack();
     void PlaybackTask();
     static void PlaybackTaskEntry(void* arg);
     void NotifyTrackInfo();
@@ -54,6 +78,7 @@ private:
     AudioCodec* codec_;
     std::vector<std::string> playlist_;
     int current_track_ = 0;
+    PlayMode play_mode_ = PlayMode::kRepeatAll;
     volatile bool playing_ = false;
     volatile bool paused_ = false;
     volatile bool stop_requested_ = false;

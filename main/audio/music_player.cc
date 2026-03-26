@@ -2,6 +2,7 @@
 #include "audio_codec.h"
 
 #include <esp_log.h>
+#include <esp_random.h>
 #include <dirent.h>
 #include <cstring>
 #include <algorithm>
@@ -172,7 +173,16 @@ void MusicPlayer::Stop() {
 
 void MusicPlayer::NextTrack() {
     if (!playing_ || playlist_.empty()) return;
-    current_track_ = (current_track_ + 1) % (int)playlist_.size();
+    if (play_mode_ == PlayMode::kShuffle) {
+        int n = (int)playlist_.size();
+        if (n > 1) {
+            int next;
+            do { next = (int)(esp_random() % n); } while (next == current_track_);
+            current_track_ = next;
+        }
+    } else {
+        current_track_ = (current_track_ + 1) % (int)playlist_.size();
+    }
     skip_requested_ = true;
 }
 
@@ -188,6 +198,58 @@ void MusicPlayer::Pause() {
 
 void MusicPlayer::Resume() {
     paused_ = false;
+}
+
+void MusicPlayer::CyclePlayMode() {
+    int m = (int)play_mode_ + 1;
+    if (m >= (int)PlayMode::kCount) m = 0;
+    play_mode_ = (PlayMode)m;
+    ESP_LOGI(TAG, "Play mode: %s", PlayModeName(play_mode_));
+}
+
+int MusicPlayer::PickNextTrack() {
+    if (playlist_.empty()) return -1;
+    int n = (int)playlist_.size();
+
+    switch (play_mode_) {
+        case PlayMode::kSequential:
+            if (current_track_ + 1 >= n) return -1;
+            return current_track_ + 1;
+        case PlayMode::kRepeatAll:
+            return (current_track_ + 1) % n;
+        case PlayMode::kRepeatOne:
+            return current_track_;
+        case PlayMode::kShuffle: {
+            if (n <= 1) return 0;
+            int next;
+            do {
+                next = (int)(esp_random() % n);
+            } while (next == current_track_);
+            return next;
+        }
+        default:
+            return (current_track_ + 1) % n;
+    }
+}
+
+bool MusicPlayer::StartPlaylist(const std::vector<std::string>& files, int start_index) {
+    Stop();
+
+    playlist_ = files;
+    if (playlist_.empty()) return false;
+    if (start_index < 0 || start_index >= (int)playlist_.size()) start_index = 0;
+    current_track_ = start_index;
+
+    stop_requested_ = false;
+    skip_requested_ = false;
+    playing_ = true;
+
+    ESP_LOGI(TAG, "Starting playlist: %d files, track %d, mode %s",
+             (int)playlist_.size(), start_index, PlayModeName(play_mode_));
+    NotifyTrackInfo();
+
+    xTaskCreate(PlaybackTaskEntry, "music_play", PLAYBACK_STACK_SIZE, this, 3, &task_handle_);
+    return true;
 }
 
 std::vector<std::string> MusicPlayer::ListFolders(const char* base_path) {
@@ -396,7 +458,9 @@ void MusicPlayer::PlaybackTask() {
         fclose(fp);
 
         if (!skip_requested_ && !stop_requested_) {
-            current_track_ = (current_track_ + 1) % (int)playlist_.size();
+            int next = PickNextTrack();
+            if (next < 0) break;
+            current_track_ = next;
         }
         skip_requested_ = false;
     }

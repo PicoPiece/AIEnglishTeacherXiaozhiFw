@@ -1164,7 +1164,6 @@ void LcdDisplay::ShowChatUI() {
         }
 #endif
     }
-    SetChatMessage("system", "");
 }
 
 void LcdDisplay::HideChatUI() {
