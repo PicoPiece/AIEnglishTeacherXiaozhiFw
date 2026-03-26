@@ -211,6 +211,7 @@ void RadioApp::OnButtonClick() {
         player_->Play(selection_);
         ShowNowPlaying();
     } else if (current_screen_ == Screen::kNowPlaying) {
+        current_screen_ = Screen::kStationList;
         if (player_ && player_->IsPlaying()) {
             player_->Stop();
         }
@@ -220,6 +221,7 @@ void RadioApp::OnButtonClick() {
 
 void RadioApp::OnButtonDoubleClick() {
     if (current_screen_ == Screen::kNowPlaying) {
+        current_screen_ = Screen::kStationList;
         if (player_ && player_->IsPlaying()) {
             player_->Stop();
         }

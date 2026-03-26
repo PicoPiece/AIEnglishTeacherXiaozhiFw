@@ -273,6 +273,9 @@ private:
                     return std::string("{\"error\":\"No song matching '") + query + "' found\"}";
                 }
 
+                if (radio_player_ && radio_player_->IsPlaying()) {
+                    radio_player_->Stop();
+                }
                 GetAudioCodec()->EnableOutput(true);
                 music_player_->StartPlaylist(playlist, match_idx);
 

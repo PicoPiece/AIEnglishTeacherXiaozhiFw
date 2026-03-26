@@ -15,9 +15,10 @@
 #define STREAM_READ_BUF_SIZE  2048
 #define PCM_OUT_BUF_SIZE      (4608 * 2)
 #define STREAM_STACK_SIZE     (12 * 1024)
-#define HTTP_TIMEOUT_MS       15000
-#define RECONNECT_DELAY_MS    3000
-#define MAX_RECONNECT_ATTEMPTS 5
+#define HTTP_CONNECT_TIMEOUT_MS 10000
+#define HTTP_READ_TIMEOUT_MS    3000
+#define RECONNECT_DELAY_MS      3000
+#define MAX_RECONNECT_ATTEMPTS  10
 
 RadioPlayer::RadioPlayer(AudioCodec* codec)
     : codec_(codec) {
@@ -67,9 +68,12 @@ void RadioPlayer::Stop() {
     stop_requested_ = true;
     if (task_handle_) {
         int wait_ms = 0;
-        while (playing_ && wait_ms < 5000) {
+        while (playing_ && wait_ms < (HTTP_READ_TIMEOUT_MS + 2000)) {
             vTaskDelay(pdMS_TO_TICKS(10));
             wait_ms += 10;
+        }
+        if (playing_) {
+            ESP_LOGW(TAG, "Stop timed out, task may still be running");
         }
         task_handle_ = nullptr;
     }
@@ -109,6 +113,7 @@ void RadioPlayer::StreamTask() {
     }
 
     const int target_rate = codec_->output_sample_rate();
+    int reconnect_attempts = 0;
 
     while (!stop_requested_) {
         if (current_station_ < 0 || current_station_ >= (int)stations_.size()) break;
@@ -119,7 +124,7 @@ void RadioPlayer::StreamTask() {
 
         esp_http_client_config_t http_cfg = {};
         http_cfg.url = station.url.c_str();
-        http_cfg.timeout_ms = HTTP_TIMEOUT_MS;
+        http_cfg.timeout_ms = HTTP_READ_TIMEOUT_MS;
         http_cfg.buffer_size = STREAM_READ_BUF_SIZE;
         http_cfg.buffer_size_tx = 512;
         http_cfg.crt_bundle_attach = esp_crt_bundle_attach;
@@ -128,7 +133,13 @@ void RadioPlayer::StreamTask() {
         if (!client) {
             ESP_LOGE(TAG, "Failed to init HTTP client");
             if (error_cb_) error_cb_("Connection failed");
-            vTaskDelay(pdMS_TO_TICKS(RECONNECT_DELAY_MS));
+            if (++reconnect_attempts >= MAX_RECONNECT_ATTEMPTS) {
+                ESP_LOGE(TAG, "Max reconnect attempts reached");
+                if (error_cb_) error_cb_("Gave up");
+                break;
+            }
+            for (int d = 0; d < RECONNECT_DELAY_MS && !stop_requested_; d += 100)
+                vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
 
@@ -137,7 +148,12 @@ void RadioPlayer::StreamTask() {
             ESP_LOGE(TAG, "Failed to open: %s", esp_err_to_name(err));
             esp_http_client_cleanup(client);
             if (error_cb_) error_cb_("Connection failed");
-            vTaskDelay(pdMS_TO_TICKS(RECONNECT_DELAY_MS));
+            if (++reconnect_attempts >= MAX_RECONNECT_ATTEMPTS) {
+                ESP_LOGE(TAG, "Max reconnect attempts reached");
+                break;
+            }
+            for (int d = 0; d < RECONNECT_DELAY_MS && !stop_requested_; d += 100)
+                vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
 
@@ -148,9 +164,16 @@ void RadioPlayer::StreamTask() {
             esp_http_client_close(client);
             esp_http_client_cleanup(client);
             if (error_cb_) error_cb_("HTTP error");
-            vTaskDelay(pdMS_TO_TICKS(RECONNECT_DELAY_MS));
+            if (++reconnect_attempts >= MAX_RECONNECT_ATTEMPTS) {
+                ESP_LOGE(TAG, "Max reconnect attempts reached");
+                break;
+            }
+            for (int d = 0; d < RECONNECT_DELAY_MS && !stop_requested_; d += 100)
+                vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
+
+        reconnect_attempts = 0;
 
         ESP_LOGI(TAG, "Streaming: %s", station.name.c_str());
 
@@ -271,9 +294,19 @@ void RadioPlayer::StreamTask() {
         esp_http_client_close(client);
         esp_http_client_cleanup(client);
 
-        if (!stop_requested_ && !switch_requested_) {
-            ESP_LOGW(TAG, "Stream ended, reconnecting in %dms...", RECONNECT_DELAY_MS);
-            vTaskDelay(pdMS_TO_TICKS(RECONNECT_DELAY_MS));
+        if (switch_requested_) {
+            reconnect_attempts = 0;
+        } else if (!stop_requested_) {
+            reconnect_attempts++;
+            if (reconnect_attempts >= MAX_RECONNECT_ATTEMPTS) {
+                ESP_LOGE(TAG, "Max reconnect attempts reached, stopping");
+                if (error_cb_) error_cb_("Connection lost");
+                break;
+            }
+            ESP_LOGW(TAG, "Stream ended, reconnecting (%d/%d)...",
+                     reconnect_attempts, MAX_RECONNECT_ATTEMPTS);
+            for (int d = 0; d < RECONNECT_DELAY_MS && !stop_requested_; d += 100)
+                vTaskDelay(pdMS_TO_TICKS(100));
         }
         switch_requested_ = false;
     }
