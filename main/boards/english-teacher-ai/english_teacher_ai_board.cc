@@ -315,7 +315,7 @@ private:
             "List messages currently stored on device.",
             PropertyList(),
             [this](const PropertyList& properties) -> ReturnValue {
-                auto& msgs = messages_app_->GetMessages();
+                auto msgs = messages_app_->GetMessagesCopy();
                 cJSON* arr = cJSON_CreateArray();
                 for (auto& m : msgs) {
                     cJSON* item = cJSON_CreateObject();

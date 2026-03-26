@@ -14,6 +14,11 @@ int MessagesApp::GetBadgeCount() {
     return unread_count_;
 }
 
+std::vector<Message> MessagesApp::GetMessagesCopy() {
+    std::lock_guard<std::mutex> lock(messages_mutex_);
+    return messages_;
+}
+
 void MessagesApp::PushMessage(const std::string& sender, const std::string& content) {
     {
         std::lock_guard<std::mutex> lock(messages_mutex_);

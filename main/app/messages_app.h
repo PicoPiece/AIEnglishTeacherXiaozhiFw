@@ -35,7 +35,9 @@ public:
     int GetBadgeCount() override;
 
     void PushMessage(const std::string& sender, const std::string& content);
+    std::vector<Message> GetMessagesCopy();
     std::vector<Message>& GetMessages() { return messages_; }
+    std::mutex& GetMessagesMutex() { return messages_mutex_; }
 
 private:
     void CreateUI();

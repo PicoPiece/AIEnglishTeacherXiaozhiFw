@@ -67,13 +67,14 @@ void RadioPlayer::Stop() {
     if (!playing_) return;
     stop_requested_ = true;
     if (task_handle_) {
+        const int stop_timeout = HTTP_CONNECT_TIMEOUT_MS + 2000;
         int wait_ms = 0;
-        while (playing_ && wait_ms < (HTTP_READ_TIMEOUT_MS + 2000)) {
+        while (playing_ && wait_ms < stop_timeout) {
             vTaskDelay(pdMS_TO_TICKS(10));
             wait_ms += 10;
         }
         if (playing_) {
-            ESP_LOGW(TAG, "Stop timed out, task may still be running");
+            ESP_LOGW(TAG, "Stop timed out after %dms, task may still be running", wait_ms);
         }
         task_handle_ = nullptr;
     }
@@ -132,7 +133,7 @@ void RadioPlayer::StreamTask() {
 
         esp_http_client_config_t http_cfg = {};
         http_cfg.url = station.url.c_str();
-        http_cfg.timeout_ms = HTTP_READ_TIMEOUT_MS;
+        http_cfg.timeout_ms = HTTP_CONNECT_TIMEOUT_MS;
         http_cfg.buffer_size = STREAM_READ_BUF_SIZE;
         http_cfg.buffer_size_tx = 512;
         http_cfg.crt_bundle_attach = esp_crt_bundle_attach;
@@ -164,6 +165,8 @@ void RadioPlayer::StreamTask() {
                 vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
+
+        esp_http_client_set_timeout_ms(client, HTTP_READ_TIMEOUT_MS);
 
         esp_http_client_fetch_headers(client);
         int status = esp_http_client_get_status_code(client);
