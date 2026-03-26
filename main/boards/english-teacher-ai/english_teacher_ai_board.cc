@@ -182,41 +182,89 @@ private:
         auto& mcp = McpServer::GetInstance();
 
         mcp.AddTool("self.list_sd_music",
-            "List all music files on the SD card. Returns a JSON array of objects with path, name, and size fields.",
+            "List all music on the SD card. Returns a compact text summary of folders and songs. "
+            "Use the song names with self.play_sd_music to play.",
             PropertyList(),
             [this](const PropertyList& properties) -> ReturnValue {
-                auto files = MusicPlayer::ListMusicFiles(SD_MOUNT_POINT);
-                cJSON* arr = cJSON_CreateArray();
-                for (auto& f : files) {
-                    cJSON* item = cJSON_CreateObject();
-                    cJSON_AddStringToObject(item, "path", f.path.c_str());
-                    cJSON_AddStringToObject(item, "name", f.name.c_str());
-                    cJSON_AddNumberToObject(item, "size", f.size);
-                    cJSON_AddItemToArray(arr, item);
+                std::string summary;
+                auto folders = MusicPlayer::ListFolders(SD_MOUNT_POINT);
+                auto root_files = MusicPlayer::ListFilesInFolder(SD_MOUNT_POINT);
+
+                for (auto& folder_name : folders) {
+                    std::string folder_path = std::string(SD_MOUNT_POINT) + "/" + folder_name;
+                    auto files = MusicPlayer::ListFilesInFolder(folder_path.c_str());
+                    summary += "[" + folder_name + "] " + std::to_string(files.size()) + " songs:";
+                    for (auto& f : files) {
+                        std::string name = f.name;
+                        if (name.length() > 60) name = name.substr(0, 57) + "...";
+                        summary += " " + name + ";";
+                    }
+                    summary += "\n";
                 }
-                return arr;
+                if (!root_files.empty()) {
+                    summary += "[root] " + std::to_string(root_files.size()) + " songs:";
+                    for (auto& f : root_files) {
+                        std::string name = f.name;
+                        if (name.length() > 60) name = name.substr(0, 57) + "...";
+                        summary += " " + name + ";";
+                    }
+                    summary += "\n";
+                }
+                if (summary.empty()) summary = "No music files found on SD card.";
+                return summary;
             });
 
         mcp.AddTool("self.play_sd_music",
-            "Play a music file from the SD card. Stops any current playback first. "
-            "Use self.list_sd_music to get available files.",
+            "Search and play music from SD card. Provide a keyword to search by song name. "
+            "Plays the first match found. Optionally set 'folder' to search within a specific folder only.",
             PropertyList({
-                Property("filepath", kPropertyTypeString)
+                Property("query", kPropertyTypeString),
+                Property("folder", kPropertyTypeString, std::string(""))
             }),
             [this](const PropertyList& properties) -> ReturnValue {
-                auto filepath = properties["filepath"].value<std::string>();
+                auto query = properties["query"].value<std::string>();
+                auto folder = properties["folder"].value<std::string>();
                 if (!music_player_) {
-                    return std::string("{\"status\":\"error\",\"message\":\"Music player not available\"}");
+                    return std::string("{\"error\":\"Music player not available\"}");
                 }
+
+                std::string search_path = SD_MOUNT_POINT;
+                if (!folder.empty()) {
+                    search_path += "/" + folder;
+                }
+                auto files = MusicPlayer::ListMusicFiles(search_path.c_str());
+                if (files.empty()) {
+                    return std::string("{\"error\":\"No music files found\"}");
+                }
+
+                // Case-insensitive substring search
+                std::string query_lower = query;
+                for (auto& c : query_lower) c = tolower(c);
+
+                std::vector<std::string> playlist;
+                int match_idx = -1;
+                for (auto& f : files) {
+                    std::string name_lower = f.name;
+                    for (auto& c : name_lower) c = tolower(c);
+                    playlist.push_back(f.path);
+                    if (match_idx < 0 && name_lower.find(query_lower) != std::string::npos) {
+                        match_idx = (int)playlist.size() - 1;
+                    }
+                }
+
+                if (match_idx < 0) {
+                    return std::string("{\"error\":\"No song matching '") + query + "' found\"}";
+                }
+
                 GetAudioCodec()->EnableOutput(true);
-                bool ok = music_player_->PlayFile(filepath);
-                if (!ok) {
-                    return std::string("{\"status\":\"error\",\"message\":\"Failed to play file\"}");
-                }
-                std::string name = music_player_->CurrentTrackName();
+                music_player_->StartPlaylist(playlist, match_idx);
+
                 cJSON* result = cJSON_CreateObject();
                 cJSON_AddStringToObject(result, "status", "playing");
-                cJSON_AddStringToObject(result, "name", name.c_str());
+                cJSON_AddStringToObject(result, "name", files[match_idx].name.c_str());
+                cJSON_AddStringToObject(result, "folder", folder.empty() ? "all" : folder.c_str());
+                cJSON_AddNumberToObject(result, "playlist_size", (double)playlist.size());
+                cJSON_AddStringToObject(result, "mode", PlayModeName(music_player_->GetPlayMode()));
                 return result;
             });
     }
