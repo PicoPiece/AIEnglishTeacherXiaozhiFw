@@ -3,6 +3,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <atomic>
 #include <string>
 #include <vector>
 #include <functional>
@@ -49,10 +50,10 @@ private:
 
     AudioCodec* codec_;
     std::vector<RadioStation> stations_;
-    int current_station_ = 0;
-    volatile bool playing_ = false;
-    volatile bool stop_requested_ = false;
-    volatile bool switch_requested_ = false;
+    std::atomic<int> current_station_{0};
+    std::atomic<bool> playing_{false};
+    std::atomic<bool> stop_requested_{false};
+    std::atomic<bool> switch_requested_{false};
     TaskHandle_t task_handle_ = nullptr;
     StationChangeCallback station_change_cb_;
     StopCallback stop_cb_;

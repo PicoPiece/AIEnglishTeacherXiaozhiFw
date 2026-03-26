@@ -3,6 +3,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <atomic>
 #include <string>
 #include <vector>
 #include <functional>
@@ -77,12 +78,12 @@ private:
 
     AudioCodec* codec_;
     std::vector<std::string> playlist_;
-    int current_track_ = 0;
+    std::atomic<int> current_track_{0};
     PlayMode play_mode_ = PlayMode::kRepeatAll;
-    volatile bool playing_ = false;
-    volatile bool paused_ = false;
-    volatile bool stop_requested_ = false;
-    volatile bool skip_requested_ = false;
+    std::atomic<bool> playing_{false};
+    std::atomic<bool> paused_{false};
+    std::atomic<bool> stop_requested_{false};
+    std::atomic<bool> skip_requested_{false};
     TaskHandle_t task_handle_ = nullptr;
     TrackInfoCallback track_info_cb_;
     StopCallback stop_cb_;

@@ -14,7 +14,7 @@
 
 #define STREAM_READ_BUF_SIZE  2048
 #define PCM_OUT_BUF_SIZE      (4608 * 2)
-#define STREAM_STACK_SIZE     (12 * 1024)
+#define STREAM_STACK_SIZE     (16 * 1024)
 #define HTTP_CONNECT_TIMEOUT_MS 10000
 #define HTTP_READ_TIMEOUT_MS    3000
 #define RECONNECT_DELAY_MS      3000
@@ -105,15 +105,23 @@ void RadioPlayer::StreamTaskEntry(void* arg) {
 void RadioPlayer::StreamTask() {
     uint8_t* read_buf = (uint8_t*)malloc(STREAM_READ_BUF_SIZE);
     uint8_t* pcm_buf = (uint8_t*)malloc(PCM_OUT_BUF_SIZE);
-    if (!read_buf || !pcm_buf) {
+    const int max_mono_samples = PCM_OUT_BUF_SIZE / sizeof(int16_t);
+    const int max_resample_out = max_mono_samples * 2;
+    int16_t* mono_buf = (int16_t*)malloc(max_mono_samples * sizeof(int16_t));
+    int16_t* resample_buf = (int16_t*)malloc(max_resample_out * sizeof(int16_t));
+    if (!read_buf || !pcm_buf || !mono_buf || !resample_buf) {
         ESP_LOGE(TAG, "Failed to allocate buffers");
         free(read_buf);
         free(pcm_buf);
+        free(mono_buf);
+        free(resample_buf);
         return;
     }
 
     const int target_rate = codec_->output_sample_rate();
     int reconnect_attempts = 0;
+    std::vector<int16_t> output_vec;
+    output_vec.reserve(max_resample_out);
 
     while (!stop_requested_) {
         if (current_station_ < 0 || current_station_ >= (int)stations_.size()) break;
@@ -254,34 +262,32 @@ void RadioPlayer::StreamTask() {
                 int16_t* pcm16 = (int16_t*)pcm_buf;
                 int sample_count = (int)(out.decoded_size / sizeof(int16_t));
 
-                std::vector<int16_t> mono;
                 if (src_channels >= 2) {
                     int mono_samples = sample_count / src_channels;
-                    mono.resize(mono_samples);
                     for (int i = 0; i < mono_samples; i++) {
                         int32_t sum = 0;
                         for (int ch = 0; ch < src_channels; ch++) {
                             sum += pcm16[i * src_channels + ch];
                         }
-                        mono[i] = (int16_t)(sum / src_channels);
+                        mono_buf[i] = (int16_t)(sum / src_channels);
                     }
-                    pcm16 = mono.data();
+                    pcm16 = mono_buf;
                     sample_count = mono_samples;
                 }
 
                 if (resampler && sample_count > 0) {
-                    uint32_t max_out = 0;
-                    esp_ae_rate_cvt_get_max_out_sample_num(resampler, (uint32_t)sample_count, &max_out);
-                    std::vector<int16_t> resampled(max_out);
-                    uint32_t actual_out = max_out;
+                    uint32_t max_out_samples = 0;
+                    esp_ae_rate_cvt_get_max_out_sample_num(resampler, (uint32_t)sample_count, &max_out_samples);
+                    if ((int)max_out_samples > max_resample_out) max_out_samples = (uint32_t)max_resample_out;
+                    uint32_t actual_out = max_out_samples;
                     esp_ae_rate_cvt_process(resampler, (esp_ae_sample_t)pcm16,
                                            (uint32_t)sample_count,
-                                           (esp_ae_sample_t)resampled.data(), &actual_out);
-                    resampled.resize(actual_out);
-                    codec_->OutputData(resampled);
+                                           (esp_ae_sample_t)resample_buf, &actual_out);
+                    output_vec.assign(resample_buf, resample_buf + actual_out);
+                    codec_->OutputData(output_vec);
                 } else if (sample_count > 0) {
-                    std::vector<int16_t> out_data(pcm16, pcm16 + sample_count);
-                    codec_->OutputData(out_data);
+                    output_vec.assign(pcm16, pcm16 + sample_count);
+                    codec_->OutputData(output_vec);
                 }
             }
         }
@@ -313,5 +319,7 @@ void RadioPlayer::StreamTask() {
 
     free(read_buf);
     free(pcm_buf);
+    free(mono_buf);
+    free(resample_buf);
     ESP_LOGI(TAG, "Radio stopped");
 }
