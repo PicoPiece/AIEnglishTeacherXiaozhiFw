@@ -28,13 +28,18 @@ public:
     void Stop();
     void NextTrack();
     void PrevTrack();
+    void Pause();
+    void Resume();
     bool IsPlaying() const { return playing_; }
+    bool IsPaused() const { return paused_; }
 
     int TrackCount() const { return (int)playlist_.size(); }
     int CurrentTrackIndex() const { return current_track_; }
     std::string CurrentTrackName() const;
 
     static std::vector<MusicFileInfo> ListMusicFiles(const char* base_path);
+    static std::vector<std::string> ListFolders(const char* base_path);
+    static std::vector<MusicFileInfo> ListFilesInFolder(const char* folder_path);
     static bool HasAudioExtension(const char* name);
 
     void SetTrackInfoCallback(TrackInfoCallback cb) { track_info_cb_ = cb; }
@@ -50,6 +55,7 @@ private:
     std::vector<std::string> playlist_;
     int current_track_ = 0;
     volatile bool playing_ = false;
+    volatile bool paused_ = false;
     volatile bool stop_requested_ = false;
     volatile bool skip_requested_ = false;
     TaskHandle_t task_handle_ = nullptr;

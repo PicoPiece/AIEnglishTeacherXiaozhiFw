@@ -182,6 +182,53 @@ void MusicPlayer::PrevTrack() {
     skip_requested_ = true;
 }
 
+void MusicPlayer::Pause() {
+    paused_ = true;
+}
+
+void MusicPlayer::Resume() {
+    paused_ = false;
+}
+
+std::vector<std::string> MusicPlayer::ListFolders(const char* base_path) {
+    std::vector<std::string> folders;
+    DIR* dir = opendir(base_path);
+    if (!dir) return folders;
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+            folders.push_back(entry->d_name);
+        }
+    }
+    closedir(dir);
+    std::sort(folders.begin(), folders.end());
+    return folders;
+}
+
+std::vector<MusicFileInfo> MusicPlayer::ListFilesInFolder(const char* folder_path) {
+    std::vector<MusicFileInfo> files;
+    DIR* dir = opendir(folder_path);
+    if (!dir) return files;
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type != DT_DIR && HasAudioExtension(entry->d_name)) {
+            std::string filepath = std::string(folder_path) + "/" + entry->d_name;
+            struct stat st;
+            long file_size = 0;
+            if (stat(filepath.c_str(), &st) == 0) {
+                file_size = st.st_size;
+            }
+            files.push_back({filepath, FilenameFromPath(filepath), file_size});
+        }
+    }
+    closedir(dir);
+    std::sort(files.begin(), files.end(), [](const MusicFileInfo& a, const MusicFileInfo& b) {
+        return a.path < b.path;
+    });
+    return files;
+}
+
 void MusicPlayer::PlaybackTaskEntry(void* arg) {
     auto* self = static_cast<MusicPlayer*>(arg);
     self->PlaybackTask();
@@ -253,6 +300,11 @@ void MusicPlayer::PlaybackTask() {
         skip_requested_ = false;
 
         while (!stop_requested_ && !skip_requested_) {
+            while (paused_ && !stop_requested_ && !skip_requested_) {
+                vTaskDelay(pdMS_TO_TICKS(50));
+            }
+            if (stop_requested_ || skip_requested_) break;
+
             size_t bytes_read = fread(read_buf, 1, MP3_READ_BUF_SIZE, fp);
             if (bytes_read == 0) break;
 

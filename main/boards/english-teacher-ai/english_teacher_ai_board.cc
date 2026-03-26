@@ -9,6 +9,11 @@
 #include "adc_battery_monitor.h"
 #include "audio/music_player.h"
 #include "mcp_server.h"
+#include "app/app_manager.h"
+#include "app/chat_app.h"
+#include "app/music_app.h"
+#include "app/radio_app.h"
+#include "app/messages_app.h"
 
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -36,6 +41,10 @@ private:
     uint8_t last_auto_brightness_ = 0;
     MusicPlayer* music_player_ = nullptr;
     bool sd_card_mounted_ = false;
+    AppManager* app_manager_ = nullptr;
+    ChatApp* chat_app_ = nullptr;
+    MusicApp* music_app_ = nullptr;
+    MessagesApp* messages_app_ = nullptr;
 
     void InitializeI2c() {
         i2c_master_bus_config_t i2c_bus_cfg = {
@@ -166,14 +175,6 @@ private:
     void InitializeMusicPlayer() {
         if (!sd_card_mounted_) return;
         music_player_ = new MusicPlayer(GetAudioCodec());
-        music_player_->SetTrackInfoCallback([this](const std::string& name, int idx, int total) {
-            char buf[128];
-            snprintf(buf, sizeof(buf), "♪ %s (%d/%d)", name.c_str(), idx, total);
-            GetDisplay()->ShowNotification(buf, 5000);
-        });
-        music_player_->SetStopCallback([this]() {
-            GetDisplay()->ShowNotification("Music stopped", 2000);
-        });
         RegisterMusicMcpTools();
     }
 
@@ -220,51 +221,125 @@ private:
             });
     }
 
+    void RegisterMessagesMcpTools() {
+        if (!messages_app_) return;
+        auto& mcp = McpServer::GetInstance();
+
+        mcp.AddTool("self.push_message",
+            "Push a text message to the device for the user to read.",
+            PropertyList({
+                Property("sender", kPropertyTypeString),
+                Property("content", kPropertyTypeString)
+            }),
+            [this](const PropertyList& properties) -> ReturnValue {
+                auto sender = properties["sender"].value<std::string>();
+                auto content = properties["content"].value<std::string>();
+                messages_app_->PushMessage(sender, content);
+                if (app_manager_ && app_manager_->InMenu()) {
+                    app_manager_->RefreshMenuBadges();
+                }
+                cJSON* result = cJSON_CreateObject();
+                cJSON_AddStringToObject(result, "status", "delivered");
+                return result;
+            });
+
+        mcp.AddTool("self.list_messages",
+            "List messages currently stored on device.",
+            PropertyList(),
+            [this](const PropertyList& properties) -> ReturnValue {
+                auto& msgs = messages_app_->GetMessages();
+                cJSON* arr = cJSON_CreateArray();
+                for (auto& m : msgs) {
+                    cJSON* item = cJSON_CreateObject();
+                    cJSON_AddStringToObject(item, "sender", m.sender.c_str());
+                    cJSON_AddStringToObject(item, "content", m.content.c_str());
+                    cJSON_AddNumberToObject(item, "timestamp", (double)m.timestamp);
+                    cJSON_AddBoolToObject(item, "read", m.read);
+                    cJSON_AddItemToArray(arr, item);
+                }
+                return arr;
+            });
+    }
+
+    void InitializeAppManager() {
+        app_manager_ = new AppManager(display_);
+
+        chat_app_ = new ChatApp();
+        app_manager_->RegisterApp(chat_app_);
+
+        if (music_player_) {
+            music_app_ = new MusicApp(music_player_, GetAudioCodec());
+            music_player_->SetTrackInfoCallback([this](const std::string& name, int idx, int total) {
+                if (music_app_) {
+                    music_app_->OnTrackChanged(name, idx, total);
+                }
+            });
+            music_player_->SetStopCallback([this]() {
+                if (music_app_) {
+                    music_app_->OnPlaybackStopped();
+                }
+            });
+            app_manager_->RegisterApp(music_app_);
+        }
+
+        app_manager_->RegisterApp(new RadioApp());
+
+        messages_app_ = new MessagesApp();
+        app_manager_->RegisterApp(messages_app_);
+        RegisterMessagesMcpTools();
+
+        // Auto-enter ChatApp on boot so existing UX is preserved.
+        // Menu is accessible via long-press BOOT (2s) from inside any app.
+        app_manager_->AutoEnterFirstApp();
+
+        ESP_LOGI(TAG, "AppManager initialized with %d apps", (int)(music_player_ ? 4 : 3));
+    }
+
     void InitializeButtons() {
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
-            if (app.GetDeviceState() == kDeviceStateStarting) {
+            auto state = app.GetDeviceState();
+            if (state == kDeviceStateStarting) {
                 EnterWifiConfigMode();
                 return;
             }
-            if (music_player_ && music_player_->IsPlaying()) {
-                music_player_->Stop();
+            if (state < kDeviceStateIdle) return;
+
+            if (app_manager_) {
+                app_manager_->OnButtonClick();
             }
-            app.ToggleChatState();
         });
 
         boot_button_.OnDoubleClick([this]() {
-            if (!music_player_) return;
-            if (music_player_->IsPlaying()) {
-                music_player_->Stop();
-            } else {
-                auto& app = Application::GetInstance();
-                if (app.GetDeviceState() == kDeviceStateListening ||
-                    app.GetDeviceState() == kDeviceStateSpeaking) {
-                    return;
-                }
-                GetAudioCodec()->EnableOutput(true);
-                music_player_->Start(SD_MOUNT_POINT);
+            if (app_manager_) {
+                app_manager_->OnButtonDoubleClick();
             }
         });
 
         boot_button_.OnLongPress([this]() {
-            if (music_player_ && music_player_->IsPlaying()) {
-                music_player_->Stop();
+            auto& app = Application::GetInstance();
+            auto state = app.GetDeviceState();
+
+            if (state == kDeviceStateStarting ||
+                state == kDeviceStateWifiConfiguring) {
+                EnterWifiConfigMode();
+                return;
             }
-            EnterWifiConfigMode();
+
+            if (app_manager_ && !app_manager_->InMenu()) {
+                app_manager_->OnButtonLongPress();
+            } else {
+                EnterWifiConfigMode();
+            }
         });
 
         volume_up_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
-            if (app.GetDeviceState() == kDeviceStateStarting) {
-                return;
+            if (app.GetDeviceState() == kDeviceStateStarting) return;
+
+            if (app_manager_) {
+                app_manager_->OnVolumeUpClick();
             }
-            if (music_player_ && music_player_->IsPlaying()) {
-                music_player_->NextTrack();
-                return;
-            }
-            GetDisplay()->ScrollChatBy(40);
         });
 
         volume_up_button_.OnLongPress([this]() {
@@ -277,14 +352,11 @@ private:
 
         volume_down_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
-            if (app.GetDeviceState() == kDeviceStateStarting) {
-                return;
+            if (app.GetDeviceState() == kDeviceStateStarting) return;
+
+            if (app_manager_) {
+                app_manager_->OnVolumeDownClick();
             }
-            if (music_player_ && music_player_->IsPlaying()) {
-                music_player_->PrevTrack();
-                return;
-            }
-            GetDisplay()->ScrollChatBy(-40);
         });
 
         volume_down_button_.OnLongPress([this]() {
@@ -298,7 +370,7 @@ private:
 
 public:
     EnglishTeacherAiBoard() :
-        boot_button_(BOOT_BUTTON_GPIO, false, 8000),
+        boot_button_(BOOT_BUTTON_GPIO, false, 2000),
         volume_up_button_(VOLUME_UP_BUTTON_GPIO),
         volume_down_button_(VOLUME_DOWN_BUTTON_GPIO)
     {
@@ -312,6 +384,7 @@ public:
         }
         battery_monitor_ = new AdcBatteryMonitor(ADC_UNIT_2, ADC_CHANNEL_7, 100000, 100000, CHARGE_DETECT_PIN);
         InitializeMusicPlayer();
+        InitializeAppManager();
     }
 
     virtual Led* GetLed() override {

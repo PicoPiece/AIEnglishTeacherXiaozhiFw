@@ -23,8 +23,8 @@
 
 // Buttons
 #define BOOT_BUTTON_GPIO        GPIO_NUM_0    // IO0, boot button
-#define VOLUME_UP_BUTTON_GPIO   GPIO_NUM_46   // IO46, button A
-#define VOLUME_DOWN_BUTTON_GPIO GPIO_NUM_45   // IO45, button B
+#define VOLUME_UP_BUTTON_GPIO   GPIO_NUM_45   // IO45, button B
+#define VOLUME_DOWN_BUTTON_GPIO GPIO_NUM_46   // IO46, button A
 
 // WS2812 RGB LED
 #define BUILTIN_LED_GPIO        GPIO_NUM_41   // IO41

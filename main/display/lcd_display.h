@@ -64,6 +64,11 @@ public:
     
     virtual void ScrollChatBy(int dy) override;
     void SetHideSubtitle(bool hide);
+
+    /** Restore main chat/status UI and arm idle emoji (wechat style). */
+    void ShowChatUI();
+    /** Hide main chat/status UI for another full-screen app overlay. */
+    void HideChatUI();
 };
 
 // SPI LCD display

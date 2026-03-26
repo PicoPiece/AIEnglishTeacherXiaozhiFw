@@ -38,9 +38,14 @@ set(SOURCES "audio/audio_codec.cc"
             "device_state_machine.cc"
             "assets.cc"
             "main.cc"
+            "app/app_manager.cc"
+            "app/music_app.cc"
+            "app/chat_app.cc"
+            "app/radio_app.cc"
+            "app/messages_app.cc"
             )
 
-set(INCLUDE_DIRS "." "display" "display/lvgl_display" "display/lvgl_display/jpg" "audio" "audio/demuxer" "protocols")
+set(INCLUDE_DIRS "." "app" "display" "display/lvgl_display" "display/lvgl_display/jpg" "audio" "audio/demuxer" "protocols")
 
 # Add board common files
 list(APPEND SOURCES
