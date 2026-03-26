@@ -344,6 +344,7 @@ void MusicApp::OnButtonDoubleClick() {
             ShowBrowse();
         }
     } else if (current_screen_ == Screen::kNowPlaying) {
+        current_screen_ = Screen::kBrowse;
         if (player_ && player_->IsPlaying()) {
             player_->Stop();
         }

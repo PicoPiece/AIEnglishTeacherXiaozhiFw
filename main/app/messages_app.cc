@@ -30,8 +30,8 @@ void MessagesApp::PushMessage(const std::string& sender, const std::string& cont
         unread_count_++;
     }
 
-    if (display_ && ui_container_) {
-        // Refresh UI if app is active (must not hold messages_mutex_: CreateUI locks it)
+    auto* d = display_;
+    if (d && ui_container_) {
         CreateUI();
     }
 }
@@ -53,8 +53,16 @@ void MessagesApp::OnEnter(LcdDisplay* display) {
 }
 
 void MessagesApp::OnExit() {
-    DestroyUI();
+    auto* saved_display = display_;
     display_ = nullptr;
+
+    if (ui_container_ && saved_display) {
+        DisplayLockGuard lock(saved_display);
+        lv_obj_del(ui_container_);
+    }
+    ui_container_ = nullptr;
+    list_items_.clear();
+
     ESP_LOGI(TAG, "Exiting Messages");
 }
 
@@ -138,12 +146,20 @@ void MessagesApp::CreateUI() {
 }
 
 void MessagesApp::ShowMessageDetail(int index) {
-    std::lock_guard<std::mutex> mlock(messages_mutex_);
-    if (index < 0 || index >= (int)messages_.size()) return;
+    std::string sender, content;
+    int64_t timestamp;
+    {
+        std::lock_guard<std::mutex> mlock(messages_mutex_);
+        if (index < 0 || index >= (int)messages_.size()) return;
+        sender = messages_[index].sender;
+        content = messages_[index].content;
+        timestamp = messages_[index].timestamp;
+    }
 
     DestroyUI();
     detail_view_ = true;
 
+    if (!display_) return;
     DisplayLockGuard lock(display_);
     lv_obj_t* screen = lv_screen_active();
 
@@ -158,15 +174,12 @@ void MessagesApp::ShowMessageDetail(int index) {
     lv_obj_set_scrollbar_mode(ui_container_, LV_SCROLLBAR_MODE_AUTO);
     lv_obj_set_scroll_dir(ui_container_, LV_DIR_VER);
 
-    auto& msg = messages_[index];
-
     lv_obj_t* sender_label = lv_label_create(ui_container_);
-    lv_label_set_text(sender_label, msg.sender.c_str());
+    lv_label_set_text(sender_label, sender.c_str());
     lv_obj_set_style_text_color(sender_label, lv_color_hex(0xe94560), 0);
     lv_obj_align(sender_label, LV_ALIGN_TOP_LEFT, 0, 0);
 
-    // Format timestamp
-    time_t ts = (time_t)msg.timestamp;
+    time_t ts = (time_t)timestamp;
     struct tm* tm_info = localtime(&ts);
     char time_buf[32];
     strftime(time_buf, sizeof(time_buf), "%H:%M %d/%m", tm_info);
@@ -177,7 +190,7 @@ void MessagesApp::ShowMessageDetail(int index) {
     lv_obj_align(time_label, LV_ALIGN_TOP_RIGHT, 0, 0);
 
     lv_obj_t* content_label = lv_label_create(ui_container_);
-    lv_label_set_text(content_label, msg.content.c_str());
+    lv_label_set_text(content_label, content.c_str());
     lv_label_set_long_mode(content_label, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(content_label, 220);
     lv_obj_set_style_text_color(content_label, lv_color_hex(0xeaeaea), 0);
