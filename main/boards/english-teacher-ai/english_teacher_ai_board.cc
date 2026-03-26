@@ -359,6 +359,10 @@ private:
         });
 
         boot_button_.OnDoubleClick([this]() {
+            auto& app = Application::GetInstance();
+            auto state = app.GetDeviceState();
+            if (state < kDeviceStateIdle) return;
+
             if (app_manager_) {
                 app_manager_->OnButtonDoubleClick();
             }
@@ -377,13 +381,16 @@ private:
             if (app_manager_ && !app_manager_->InMenu()) {
                 app_manager_->OnButtonLongPress();
             } else {
+                if (app_manager_) {
+                    app_manager_->CleanupForWifiConfig();
+                }
                 EnterWifiConfigMode();
             }
         });
 
         volume_up_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
-            if (app.GetDeviceState() == kDeviceStateStarting) return;
+            if (app.GetDeviceState() < kDeviceStateIdle) return;
 
             if (app_manager_) {
                 app_manager_->OnVolumeUpClick();
@@ -391,6 +398,9 @@ private:
         });
 
         volume_up_button_.OnLongPress([this]() {
+            auto& app = Application::GetInstance();
+            if (app.GetDeviceState() < kDeviceStateIdle) return;
+
             auto codec = GetAudioCodec();
             auto volume = codec->output_volume() + 20;
             if (volume > 100) volume = 100;
@@ -400,7 +410,7 @@ private:
 
         volume_down_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
-            if (app.GetDeviceState() == kDeviceStateStarting) return;
+            if (app.GetDeviceState() < kDeviceStateIdle) return;
 
             if (app_manager_) {
                 app_manager_->OnVolumeDownClick();
@@ -408,6 +418,9 @@ private:
         });
 
         volume_down_button_.OnLongPress([this]() {
+            auto& app = Application::GetInstance();
+            if (app.GetDeviceState() < kDeviceStateIdle) return;
+
             auto codec = GetAudioCodec();
             auto volume = codec->output_volume() - 20;
             if (volume < 0) volume = 0;

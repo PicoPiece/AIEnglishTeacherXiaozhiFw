@@ -224,3 +224,16 @@ void AppManager::OnVolumeDownLongPress() {
         active_app_->OnVolumeDownLongPress();
     }
 }
+
+void AppManager::CleanupForWifiConfig() {
+    if (active_app_) {
+        active_app_->OnExit();
+        active_app_ = nullptr;
+    }
+    {
+        DisplayLockGuard lock(display_);
+        DestroyMenuUI();
+    }
+    display_->HideChatUI();
+    ESP_LOGI(TAG, "Cleaned up for WiFi config");
+}

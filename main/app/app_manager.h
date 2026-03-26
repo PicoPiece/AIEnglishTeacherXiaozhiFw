@@ -29,6 +29,7 @@ public:
     void OnVolumeDownLongPress();
 
     void RefreshMenuBadges();
+    void CleanupForWifiConfig();
 
 private:
     void SelectApp(int index);
