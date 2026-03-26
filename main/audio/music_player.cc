@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 
 #include "esp_audio_simple_dec.h"
+#include "esp_audio_simple_dec_default.h"
+#include "esp_audio_dec_default.h"
 #include "esp_ae_rate_cvt.h"
 
 #define TAG "MusicPlayer"
@@ -18,6 +20,8 @@
 
 MusicPlayer::MusicPlayer(AudioCodec* codec)
     : codec_(codec) {
+    esp_audio_dec_register_default();
+    esp_audio_simple_dec_register_default();
 }
 
 MusicPlayer::~MusicPlayer() {
