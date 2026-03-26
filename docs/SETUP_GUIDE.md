@@ -92,7 +92,9 @@ EnglishTeacherAI is an AI-powered English learning device built on the AI-VOX3 b
 - Browse and play MP3/WAV/OGG/M4A files from SD card
 - Unified file browser showing folders `[FolderName]` and audio files
 - Navigate into subfolders to any depth
-- Now Playing screen with track name and index
+- Selecting a file builds a playlist from all audio files in the current folder
+- Now Playing screen with track name, index, and play mode
+- 4 play modes: Sequential, Repeat All (default), Repeat One, Shuffle
 - Supports long filenames (FATFS LFN enabled)
 
 ### 3. Radio (RadioApp)
@@ -173,7 +175,7 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 |--------|-------------|
 | VOL+ click | Previous track |
 | VOL- click | Next track |
-| BOOT click | Stop playback, return to browser |
+| BOOT click | Cycle play mode (Sequential → Repeat All → Repeat One → Shuffle) |
 | BOOT double-click | Stop playback, return to browser |
 
 ### MessagesApp
@@ -331,12 +333,17 @@ Rules:
 
 ### MCP Tools (Server → Device)
 
-| Tool | Description |
-|------|-------------|
-| `self.list_sd_music` | List music files on the device SD card |
-| `self.play_sd_music` | Play a specific music file on the device |
-| `self.push_message` | Send a message to the device Messages app |
-| `self.list_messages` | List messages stored on the device |
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `self.list_sd_music` | *(none)* | Returns compact text summary of all folders and songs on SD card |
+| `self.play_sd_music` | `query` (required), `folder` (optional) | Search and play music by keyword. Builds playlist from matching scope |
+| `self.push_message` | `sender`, `content` | Send a text message to the device Messages app |
+| `self.list_messages` | *(none)* | List messages stored on the device |
+
+**MCP Usage Notes:**
+- `self.list_sd_music` returns a single compact response (fits within 64KB WebSocket limit)
+- `self.play_sd_music` uses case-insensitive substring matching on song names
+- When playing, all audio files in the search scope become the playlist (supports Next/Prev/Shuffle)
 
 ---
 
