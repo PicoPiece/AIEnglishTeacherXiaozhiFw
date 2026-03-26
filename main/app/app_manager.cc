@@ -55,6 +55,7 @@ void AppManager::SelectApp(int index) {
     {
         DisplayLockGuard lock(display_);
         DestroyMenuUI();
+        lv_obj_invalidate(lv_screen_active());
     }
     active_app_ = apps_[index];
     active_app_->OnEnter(display_);

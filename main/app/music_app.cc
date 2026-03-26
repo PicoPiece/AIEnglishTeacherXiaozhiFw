@@ -43,8 +43,24 @@ void MusicApp::OnEnter(LcdDisplay* display) {
 }
 
 void MusicApp::OnExit() {
-    DestroyUI();
+    // Null display_ first to prevent callbacks (OnPlaybackStopped,
+    // OnTrackChanged) from recreating UI on the playback task.
+    auto* saved_display = display_;
     display_ = nullptr;
+
+    if (player_ && player_->IsPlaying()) {
+        player_->Stop();
+    }
+
+    if (ui_container_ && saved_display) {
+        DisplayLockGuard lock(saved_display);
+        lv_obj_del(ui_container_);
+    }
+    ui_container_ = nullptr;
+    title_label_ = nullptr;
+    mode_label_ = nullptr;
+    list_items_.clear();
+
     ESP_LOGI(TAG, "Exiting Music app");
 }
 
