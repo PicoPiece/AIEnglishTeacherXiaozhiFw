@@ -232,8 +232,9 @@ private:
             });
 
         mcp.AddTool("self.play_sd_music",
-            "Search and play music from SD card. Provide a keyword to search by song name. "
-            "Plays the first match found. Optionally set 'folder' to search within a specific folder only.",
+            "Search and play music from SD card. Only works when user is in Music app. "
+            "If user is in AI Chat, tell them to switch to Music app first via long-press BOOT. "
+            "Provide a keyword to search by song name. Optionally set 'folder' to limit search.",
             PropertyList({
                 Property("query", kPropertyTypeString),
                 Property("folder", kPropertyTypeString, std::string(""))
@@ -245,6 +246,14 @@ private:
                     return std::string("{\"error\":\"Music player not available\"}");
                 }
 
+                if (app_manager_) {
+                    auto* active = app_manager_->GetActiveApp();
+                    if (active && active != music_app_) {
+                        return std::string("{\"error\":\"Music can only play in Music app. "
+                            "User should long-press BOOT to open menu, then select Music.\"}");
+                    }
+                }
+
                 std::string search_path = SD_MOUNT_POINT;
                 if (!folder.empty()) {
                     search_path += "/" + folder;
@@ -254,7 +263,6 @@ private:
                     return std::string("{\"error\":\"No music files found\"}");
                 }
 
-                // Case-insensitive substring search
                 std::string query_lower = query;
                 for (auto& c : query_lower) c = tolower(c);
 
@@ -286,6 +294,20 @@ private:
                 cJSON_AddNumberToObject(result, "playlist_size", (double)playlist.size());
                 cJSON_AddStringToObject(result, "mode", PlayModeName(music_player_->GetPlayMode()));
                 return result;
+            });
+
+        mcp.AddTool("self.stop_sd_music",
+            "Stop currently playing music from SD card.",
+            PropertyList(),
+            [this](const PropertyList& properties) -> ReturnValue {
+                if (!music_player_) {
+                    return std::string("{\"error\":\"Music player not available\"}");
+                }
+                if (music_player_->IsPlaying()) {
+                    music_player_->Stop();
+                    return std::string("{\"status\":\"stopped\"}");
+                }
+                return std::string("{\"status\":\"not playing\"}");
             });
     }
 
