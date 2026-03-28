@@ -174,7 +174,7 @@ void RadioPlayer::StreamTask() {
 
         int64_t content_len = esp_http_client_fetch_headers(client);
         int status = esp_http_client_get_status_code(client);
-        ESP_LOGI(TAG, "HTTP %d, content_len=%lld for %s", status, (long long)content_len, station.name.c_str());
+        ESP_LOGI(TAG, "HTTP %d, content_len=%d for %s", status, (int)content_len, station.name.c_str());
 
         if (status != 200 && status != 0) {
             ESP_LOGE(TAG, "HTTP %d for %s", status, station.name.c_str());
