@@ -184,13 +184,15 @@ private:
     void InitializeRadioPlayer() {
         radio_player_ = new RadioPlayer(GetAudioCodec());
 
-        // English learning radio stations (MP3 streams)
-        radio_player_->AddStation("NPR News",       "http://npr-ice.streamguys1.com/live.mp3",           "News");
-        radio_player_->AddStation("Classic FM",      "http://media-ice.musicradio.com/ClassicFMMP3",      "Classical");
-        radio_player_->AddStation("KEXP Seattle",    "http://live-mp3-128.kexp.org/kexp128.mp3",          "Indie");
-        radio_player_->AddStation("SomaFM Groove",   "http://ice1.somafm.com/groovesalad-128-mp3",        "Chill");
-        radio_player_->AddStation("SomaFM Secret",   "http://ice1.somafm.com/secretagent-128-mp3",        "Lounge");
-        radio_player_->AddStation("ABC News Radio",  "http://live-radio01.mediahubaustralia.com/2LRW/mp3/", "News AU");
+        // English radio stations (verified MP3 streams)
+        radio_player_->AddStation("NPR News",        "http://npr-ice.streamguys1.com/live.mp3",            "News");
+        radio_player_->AddStation("KEXP Seattle",     "http://live-mp3-128.kexp.org/kexp128.mp3",           "Indie");
+        radio_player_->AddStation("SomaFM Groove",    "http://ice1.somafm.com/groovesalad-128-mp3",         "Chill");
+        radio_player_->AddStation("SomaFM Secret",    "http://ice1.somafm.com/secretagent-128-mp3",         "Lounge");
+        radio_player_->AddStation("181FM Classical",   "http://listen.181fm.com/181-classical_128k.mp3",     "Classical");
+        radio_player_->AddStation("Relaxing Jazz",     "http://stream-02-eu.relaxingjazz.com/stream/3/",     "Jazz");
+        radio_player_->AddStation("WFMT Classical",    "https://wfmt.streamguys1.com/main-mp3",              "Classical");
+        radio_player_->AddStation("Chillout Lounge",   "http://strm112.1.fm/chilloutlounge_mobile_mp3",      "Chill");
 
         ESP_LOGI(TAG, "RadioPlayer initialized with %d stations", radio_player_->StationCount());
     }

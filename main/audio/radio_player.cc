@@ -137,6 +137,7 @@ void RadioPlayer::StreamTask() {
         http_cfg.buffer_size = STREAM_READ_BUF_SIZE;
         http_cfg.buffer_size_tx = 512;
         http_cfg.crt_bundle_attach = esp_crt_bundle_attach;
+        http_cfg.max_redirection_count = 10;
 
         esp_http_client_handle_t client = esp_http_client_init(&http_cfg);
         if (!client) {
@@ -151,6 +152,9 @@ void RadioPlayer::StreamTask() {
                 vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
+
+        esp_http_client_set_header(client, "User-Agent", "ESP32-Radio/1.0");
+        esp_http_client_set_header(client, "Icy-MetaData", "0");
 
         esp_err_t err = esp_http_client_open(client, 0);
         if (err != ESP_OK) {
@@ -168,9 +172,11 @@ void RadioPlayer::StreamTask() {
 
         esp_http_client_set_timeout_ms(client, HTTP_READ_TIMEOUT_MS);
 
-        esp_http_client_fetch_headers(client);
+        int64_t content_len = esp_http_client_fetch_headers(client);
         int status = esp_http_client_get_status_code(client);
-        if (status != 200) {
+        ESP_LOGI(TAG, "HTTP %d, content_len=%lld for %s", status, (long long)content_len, station.name.c_str());
+
+        if (status != 200 && status != 0) {
             ESP_LOGE(TAG, "HTTP %d for %s", status, station.name.c_str());
             esp_http_client_close(client);
             esp_http_client_cleanup(client);
