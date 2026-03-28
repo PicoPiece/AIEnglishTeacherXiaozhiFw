@@ -16,7 +16,7 @@
 #define PCM_OUT_BUF_SIZE        (4608 * 2)
 #define STREAM_STACK_SIZE       (16 * 1024)
 #define HTTP_CONNECT_TIMEOUT_MS 10000
-#define HTTP_READ_TIMEOUT_MS    1000
+#define HTTP_READ_TIMEOUT_MS    5000
 #define RECONNECT_DELAY_MS      2000
 #define MAX_RECONNECT_ATTEMPTS  10
 #define PREBUFFER_BYTES         (20 * 1024)
@@ -171,11 +171,12 @@ void RadioPlayer::StreamTask() {
             continue;
         }
 
-        esp_http_client_set_timeout_ms(client, HTTP_READ_TIMEOUT_MS);
-
         int64_t content_len = esp_http_client_fetch_headers(client);
         int status = esp_http_client_get_status_code(client);
         ESP_LOGI(TAG, "HTTP %d, content_len=%d for %s", status, (int)content_len, station.name.c_str());
+
+        // Switch to shorter read timeout after headers are received
+        esp_http_client_set_timeout_ms(client, HTTP_READ_TIMEOUT_MS);
 
         if (status != 200 && status != 0) {
             ESP_LOGE(TAG, "HTTP %d for %s", status, station.name.c_str());
@@ -198,10 +199,17 @@ void RadioPlayer::StreamTask() {
         int prebuf_total = 0;
         if (prebuf) {
             ESP_LOGI(TAG, "Pre-buffering %s...", station.name.c_str());
+            int empty_reads = 0;
             while (prebuf_total < PREBUFFER_BYTES && !stop_requested_ && !switch_requested_) {
                 int r = esp_http_client_read(client, (char*)prebuf + prebuf_total,
                                               PREBUFFER_BYTES - prebuf_total);
-                if (r <= 0) break;
+                if (r < 0) break;
+                if (r == 0) {
+                    if (++empty_reads > 3) break;
+                    vTaskDelay(pdMS_TO_TICKS(100));
+                    continue;
+                }
+                empty_reads = 0;
                 prebuf_total += r;
             }
             ESP_LOGI(TAG, "Pre-buffered %d bytes, starting playback", prebuf_total);
