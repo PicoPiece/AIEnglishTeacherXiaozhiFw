@@ -12,13 +12,14 @@
 
 #define TAG "RadioPlayer"
 
-#define STREAM_READ_BUF_SIZE  2048
-#define PCM_OUT_BUF_SIZE      (4608 * 2)
-#define STREAM_STACK_SIZE     (16 * 1024)
+#define STREAM_READ_BUF_SIZE    4096
+#define PCM_OUT_BUF_SIZE        (4608 * 2)
+#define STREAM_STACK_SIZE       (16 * 1024)
 #define HTTP_CONNECT_TIMEOUT_MS 10000
-#define HTTP_READ_TIMEOUT_MS    3000
-#define RECONNECT_DELAY_MS      3000
+#define HTTP_READ_TIMEOUT_MS    1000
+#define RECONNECT_DELAY_MS      2000
 #define MAX_RECONNECT_ATTEMPTS  10
+#define PREBUFFER_BYTES         (20 * 1024)
 
 RadioPlayer::RadioPlayer(AudioCodec* codec)
     : codec_(codec) {
@@ -192,6 +193,22 @@ void RadioPlayer::StreamTask() {
 
         reconnect_attempts = 0;
 
+        // Pre-buffer: accumulate data before starting playback to absorb network jitter
+        uint8_t* prebuf = (uint8_t*)malloc(PREBUFFER_BYTES);
+        int prebuf_total = 0;
+        if (prebuf) {
+            ESP_LOGI(TAG, "Pre-buffering %s...", station.name.c_str());
+            while (prebuf_total < PREBUFFER_BYTES && !stop_requested_ && !switch_requested_) {
+                int r = esp_http_client_read(client, (char*)prebuf + prebuf_total,
+                                              PREBUFFER_BYTES - prebuf_total);
+                if (r <= 0) break;
+                prebuf_total += r;
+            }
+            ESP_LOGI(TAG, "Pre-buffered %d bytes, starting playback", prebuf_total);
+        } else {
+            ESP_LOGW(TAG, "Pre-buffer alloc failed, streaming without buffer");
+        }
+
         ESP_LOGI(TAG, "Streaming: %s", station.name.c_str());
 
         esp_audio_simple_dec_cfg_t dec_cfg = {};
@@ -200,6 +217,7 @@ void RadioPlayer::StreamTask() {
         esp_audio_err_t ret = esp_audio_simple_dec_open(&dec_cfg, &decoder);
         if (ret != ESP_AUDIO_ERR_OK || !decoder) {
             ESP_LOGE(TAG, "Failed to open decoder: %d", ret);
+            free(prebuf);
             esp_http_client_close(client);
             esp_http_client_cleanup(client);
             break;
@@ -211,9 +229,27 @@ void RadioPlayer::StreamTask() {
         uint8_t src_channels = 0;
         switch_requested_ = false;
         int consecutive_errors = 0;
+        int prebuf_offset = 0;
 
         while (!stop_requested_ && !switch_requested_) {
-            int bytes_read = esp_http_client_read(client, (char*)read_buf, STREAM_READ_BUF_SIZE);
+            int bytes_read;
+
+            // Phase 1: consume pre-buffered data
+            if (prebuf && prebuf_offset < prebuf_total) {
+                bytes_read = prebuf_total - prebuf_offset;
+                if (bytes_read > STREAM_READ_BUF_SIZE) bytes_read = STREAM_READ_BUF_SIZE;
+                memcpy(read_buf, prebuf + prebuf_offset, bytes_read);
+                prebuf_offset += bytes_read;
+                if (prebuf_offset >= prebuf_total) {
+                    free(prebuf);
+                    prebuf = nullptr;
+                }
+            } else {
+                // Phase 2: live stream
+                if (prebuf) { free(prebuf); prebuf = nullptr; }
+                bytes_read = esp_http_client_read(client, (char*)read_buf, STREAM_READ_BUF_SIZE);
+            }
+
             if (bytes_read < 0) {
                 ESP_LOGW(TAG, "Read error, reconnecting...");
                 break;
@@ -221,8 +257,8 @@ void RadioPlayer::StreamTask() {
             if (bytes_read == 0) {
                 vTaskDelay(pdMS_TO_TICKS(50));
                 consecutive_errors++;
-                if (consecutive_errors > 100) {
-                    ESP_LOGW(TAG, "No data for 5s, reconnecting...");
+                if (consecutive_errors > 200) {
+                    ESP_LOGW(TAG, "No data for 10s, reconnecting...");
                     break;
                 }
                 continue;
@@ -301,6 +337,7 @@ void RadioPlayer::StreamTask() {
             }
         }
 
+        if (prebuf) { free(prebuf); prebuf = nullptr; }
         if (resampler) {
             esp_ae_rate_cvt_close(resampler);
             resampler = nullptr;
