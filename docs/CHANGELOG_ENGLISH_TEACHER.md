@@ -35,7 +35,9 @@ Implemented a full application framework with menu-based navigation on the 240x2
 
 **Navigation:**
 - Long-press BOOT (2s) from any app → return to menu
-- VOL+/VOL- in menu → navigate selection
+- VOL+/VOL- click in menu → navigate selection
+- VOL+/VOL- long-press (0.8s) → volume up/down (±10%, works globally in any screen)
+  - Uses manual `OnPressDown`/`OnPressUp` timing instead of iot_button `BUTTON_LONG_PRESS_START` for reliability on GPIO 45/46 strapping pins
 - BOOT click in menu → enter selected app
 - Long-press BOOT in menu → enter WiFi config mode
 - Double-click BOOT in apps → back (within app sub-screens)
@@ -89,11 +91,32 @@ Full-featured music player with folder browser and playback controls.
 
 ---
 
-### RadioApp — Placeholder
+### RadioApp — Internet Radio Streaming
 
-Displays a "Coming Soon" screen. Reserved for future internet radio streaming.
+Full internet radio player streaming English-language stations via HTTP MP3.
 
-**Files:** `radio_app.h/.cc`
+**Features:**
+- HTTP MP3 streaming with `esp_http_client`
+- Pre-buffering (20KB) for smooth playback startup
+- Auto-reconnect on stream interruption with configurable retry delay
+- HTTP redirect support (up to 10 redirects)
+- ICY protocol compatibility (Icecast/Shoutcast servers)
+- 8 pre-loaded English radio stations (NPR, KEXP, SomaFM, 181FM, etc.)
+
+**Streaming engine (`RadioPlayer`):**
+- Dedicated FreeRTOS streaming task with 8KB stack
+- 4KB read buffer, 5s HTTP read timeout, 10s connect timeout
+- Pre-buffer phase fills 20KB before starting audio output
+- Consecutive error tracking with auto-reconnect (200 error threshold)
+- Station management: `AddStation()`, `NextStation()`, `PrevStation()`
+- Thread-safe stop/switch via `std::atomic<bool>` flags
+
+**UI:**
+- Station list with genre tags (scrollable)
+- Now Playing screen with station name, genre, and stream status
+- Volume control via VOL+/VOL- click
+
+**Files:** `radio_app.h/.cc`, `radio_player.h/.cc`
 
 ---
 
@@ -210,6 +233,8 @@ main/app/messages_app.h                                     (NEW — messages ap
 main/app/messages_app.cc                                    (NEW — messages app implementation)
 main/audio/music_player.h                                   (NEW — music playback engine)
 main/audio/music_player.cc                                  (NEW — music playback engine)
+main/audio/radio_player.h                                   (NEW — HTTP MP3 streaming engine)
+main/audio/radio_player.cc                                  (NEW — HTTP MP3 streaming engine)
 main/display/lcd_display.cc                                 (MODIFIED — emoji, ShowChatUI/HideChatUI)
 main/display/lcd_display.h                                  (MODIFIED — new method declarations)
 main/display/display.h                                      (MODIFIED — ScrollChatBy API)

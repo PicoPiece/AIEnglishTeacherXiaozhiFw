@@ -3,6 +3,7 @@
 
 #include "app_base.h"
 #include <lvgl.h>
+#include <esp_timer.h>
 #include <vector>
 
 class LcdDisplay;
@@ -31,6 +32,7 @@ public:
 
     void RefreshMenuBadges();
     void CleanupForWifiConfig();
+    void ShowVolumeNotification(int volume);
 
 private:
     void SelectApp(int index);
@@ -46,6 +48,11 @@ private:
     lv_obj_t* menu_container_ = nullptr;
     std::vector<lv_obj_t*> menu_items_;
     std::vector<lv_obj_t*> menu_badges_;
+
+    lv_obj_t* volume_overlay_ = nullptr;
+    lv_obj_t* volume_bar_ = nullptr;
+    lv_obj_t* volume_label_ = nullptr;
+    esp_timer_handle_t volume_timer_ = nullptr;
 };
 
 #endif // _APP_MANAGER_H_

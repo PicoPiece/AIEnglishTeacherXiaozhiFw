@@ -92,7 +92,7 @@ EnglishTeacherAI is an AI-powered English learning device built on the AI-VOX3 b
 - Browse and play MP3/WAV/OGG/M4A files from SD card
 - Unified file browser showing folders `[FolderName]` and audio files
 - Navigate into subfolders to any depth
-- Selecting a file builds a playlist from all audio files in the current folder
+1- Selecting a file builds a playlist from all audio files in the current folder
 - Now Playing screen with track name, index, and play mode
 - 4 play modes: Sequential, Repeat All (default), Repeat One, Shuffle
 - Supports long filenames (FATFS LFN enabled)
@@ -100,17 +100,20 @@ EnglishTeacherAI is an AI-powered English learning device built on the AI-VOX3 b
 ### 3. Internet Radio (RadioApp)
 
 - Stream English-language internet radio stations via HTTP MP3
+- Pre-buffering (20KB) for smooth playback startup
 - Pre-loaded stations focused on English learning (news, talk, music):
   - NPR News (24/7 US English news)
-  - Classic FM (UK classical music)
   - KEXP Seattle (indie/alternative)
   - SomaFM Groove Salad (ambient/chill)
   - SomaFM Secret Agent (lounge)
-  - ABC News Radio (Australian English news)
+  - 181FM Classical
+  - Relaxing Jazz
+  - WFMT Classical
+  - Chillout Lounge
 - Station list UI with genre tags
 - Now Playing screen with station name and status
-- Auto-reconnect on stream interruption
-- VOL+/VOL- to switch stations while streaming
+- Auto-reconnect on stream interruption with configurable retry delay
+- Long-press VOL+/VOL- to switch stations while streaming
 
 ### 4. Messages (MessagesApp)
 
@@ -146,8 +149,8 @@ EnglishTeacherAI is an AI-powered English learning device built on the AI-VOX3 b
 | **BOOT long-press (2s)** | Return to app menu from any app |
 | **VOL+ click** | Navigate up in lists / scroll up in chat |
 | **VOL- click** | Navigate down in lists / scroll down in chat |
-| **VOL+ long-press** | System volume +20 |
-| **VOL- long-press** | System volume -20 |
+| **VOL+ long-press (0.8s)** | Volume up (+10%) — shows notification on screen |
+| **VOL- long-press (0.8s)** | Volume down (-10%) — shows notification on screen |
 
 ### App Menu
 
@@ -155,7 +158,8 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 
 | Action | What it does |
 |--------|-------------|
-| VOL+/VOL- | Move selection up/down |
+| VOL+/VOL- click | Move selection up/down |
+| VOL+/VOL- long-press | Volume up/down |
 | BOOT click | Enter selected app |
 | BOOT long-press (2s) | Enter WiFi configuration mode |
 
@@ -166,6 +170,7 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 | BOOT click | Start/stop talking to AI |
 | VOL+ click | Scroll chat history up (older) |
 | VOL- click | Scroll chat history down (newer) |
+| VOL+/VOL- long-press | Volume up/down |
 | BOOT double-click | *(no action)* |
 
 ### MusicApp (SD Card Player)
@@ -174,7 +179,8 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 
 | Action | What it does |
 |--------|-------------|
-| VOL+/VOL- | Move selection up/down |
+| VOL+/VOL- click | Move selection up/down |
+| VOL+/VOL- long-press | Volume up/down |
 | BOOT click on `[Folder]` | Open folder |
 | BOOT click on file | Play selected song |
 | BOOT double-click | Go back to parent folder |
@@ -185,6 +191,7 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 |--------|-------------|
 | VOL+ click | Previous track |
 | VOL- click | Next track |
+| VOL+/VOL- long-press | Volume up/down |
 | BOOT click | Cycle play mode (Sequential → Repeat All → Repeat One → Shuffle) |
 | BOOT double-click | Stop playback, return to browser |
 
@@ -194,14 +201,16 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 
 | Action | What it does |
 |--------|-------------|
-| VOL+/VOL- | Move selection up/down |
+| VOL+/VOL- click | Move selection up/down |
+| VOL+/VOL- long-press | Volume up/down |
 | BOOT click | Open selected message |
 
 **Message Detail:**
 
 | Action | What it does |
 |--------|-------------|
-| VOL+/VOL- | Scroll message content |
+| VOL+/VOL- click | Scroll message content |
+| VOL+/VOL- long-press | Volume up/down |
 | BOOT double-click | Back to message list |
 
 ### RadioApp (Internet Radio)
@@ -210,16 +219,18 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 
 | Action | What it does |
 |--------|-------------|
-| VOL+/VOL- | Move selection up/down |
+| VOL+/VOL- click | Move selection up/down |
+| VOL+/VOL- long-press | Volume up/down |
 | BOOT click | Start streaming selected station |
 
 **Now Playing:**
 
 | Action | What it does |
 |--------|-------------|
-| BOOT click | Stop streaming, return to station list |
 | VOL+ click | Switch to previous station |
 | VOL- click | Switch to next station |
+| VOL+/VOL- long-press | Volume up/down |
+| BOOT click | Stop streaming, return to station list |
 | BOOT double-click | Stop streaming, return to station list |
 
 ---

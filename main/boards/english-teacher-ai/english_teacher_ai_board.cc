@@ -44,6 +44,8 @@ private:
     RadioPlayer* radio_player_ = nullptr;
     bool sd_card_mounted_ = false;
     AppManager* app_manager_ = nullptr;
+    int64_t vol_up_press_time_ = 0;
+    int64_t vol_down_press_time_ = 0;
     ChatApp* chat_app_ = nullptr;
     MusicApp* music_app_ = nullptr;
     RadioApp* radio_app_ = nullptr;
@@ -404,6 +406,7 @@ private:
     }
 
     void InitializeButtons() {
+
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
             auto state = app.GetDeviceState();
@@ -448,44 +451,50 @@ private:
             }
         });
 
-        volume_up_button_.OnClick([this]() {
-            auto& app = Application::GetInstance();
-            if (app.GetDeviceState() < kDeviceStateIdle) return;
+        // GPIO 45 = physical LEFT button, GPIO 46 = physical RIGHT button
+        // Click: app navigation (direction already correct)
+        // Long press: volume (LEFT = decrease, RIGHT = increase)
 
-            if (app_manager_) {
-                app_manager_->OnVolumeUpClick();
+        volume_up_button_.OnPressDown([this]() {
+            vol_up_press_time_ = esp_timer_get_time();
+        });
+
+        volume_up_button_.OnPressUp([this]() {
+            int64_t held_ms = (esp_timer_get_time() - vol_up_press_time_) / 1000;
+            if (held_ms >= 800) {
+                auto codec = GetAudioCodec();
+                int volume = codec->output_volume() - 10;
+                if (volume < 0) volume = 0;
+                codec->SetOutputVolume(volume);
+                ESP_LOGI(TAG, "VOL- (left) -> volume=%d", volume);
+                if (app_manager_) app_manager_->ShowVolumeNotification(volume);
+            } else {
+                auto& app = Application::GetInstance();
+                if (app.GetDeviceState() >= kDeviceStateIdle && app_manager_) {
+                    app_manager_->OnVolumeUpClick();
+                }
             }
         });
 
-        volume_up_button_.OnLongPress([this]() {
-            auto& app = Application::GetInstance();
-            if (app.GetDeviceState() < kDeviceStateIdle) return;
-
-            auto codec = GetAudioCodec();
-            auto volume = codec->output_volume() + 20;
-            if (volume > 100) volume = 100;
-            codec->SetOutputVolume(volume);
-            GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume));
+        volume_down_button_.OnPressDown([this]() {
+            vol_down_press_time_ = esp_timer_get_time();
         });
 
-        volume_down_button_.OnClick([this]() {
-            auto& app = Application::GetInstance();
-            if (app.GetDeviceState() < kDeviceStateIdle) return;
-
-            if (app_manager_) {
-                app_manager_->OnVolumeDownClick();
+        volume_down_button_.OnPressUp([this]() {
+            int64_t held_ms = (esp_timer_get_time() - vol_down_press_time_) / 1000;
+            if (held_ms >= 800) {
+                auto codec = GetAudioCodec();
+                int volume = codec->output_volume() + 10;
+                if (volume > 100) volume = 100;
+                codec->SetOutputVolume(volume);
+                ESP_LOGI(TAG, "VOL+ (right) -> volume=%d", volume);
+                if (app_manager_) app_manager_->ShowVolumeNotification(volume);
+            } else {
+                auto& app = Application::GetInstance();
+                if (app.GetDeviceState() >= kDeviceStateIdle && app_manager_) {
+                    app_manager_->OnVolumeDownClick();
+                }
             }
-        });
-
-        volume_down_button_.OnLongPress([this]() {
-            auto& app = Application::GetInstance();
-            if (app.GetDeviceState() < kDeviceStateIdle) return;
-
-            auto codec = GetAudioCodec();
-            auto volume = codec->output_volume() - 20;
-            if (volume < 0) volume = 0;
-            codec->SetOutputVolume(volume);
-            GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume));
         });
     }
 

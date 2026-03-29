@@ -3,6 +3,7 @@
 #include "display/display.h"
 
 #include <cstdio>
+#include <string>
 
 #include <esp_log.h>
 
@@ -236,4 +237,59 @@ void AppManager::CleanupForWifiConfig() {
     }
     display_->HideChatUI();
     ESP_LOGI(TAG, "Cleaned up for WiFi config");
+}
+
+void AppManager::ShowVolumeNotification(int volume) {
+    DisplayLockGuard lock(display_);
+
+    if (!volume_timer_) {
+        esp_timer_create_args_t args = {
+            .callback = [](void* arg) {
+                auto* self = static_cast<AppManager*>(arg);
+                DisplayLockGuard lock(self->display_);
+                if (self->volume_overlay_) {
+                    lv_obj_del(self->volume_overlay_);
+                    self->volume_overlay_ = nullptr;
+                    self->volume_bar_ = nullptr;
+                    self->volume_label_ = nullptr;
+                }
+            },
+            .arg = this,
+            .dispatch_method = ESP_TIMER_TASK,
+            .name = "vol_notify",
+            .skip_unhandled_events = true,
+        };
+        esp_timer_create(&args, &volume_timer_);
+    }
+
+    if (!volume_overlay_) {
+        volume_overlay_ = lv_obj_create(lv_layer_top());
+        lv_obj_set_size(volume_overlay_, 180, 50);
+        lv_obj_align(volume_overlay_, LV_ALIGN_TOP_MID, 0, 30);
+        lv_obj_set_style_bg_color(volume_overlay_, lv_color_hex(0x000000), 0);
+        lv_obj_set_style_bg_opa(volume_overlay_, LV_OPA_80, 0);
+        lv_obj_set_style_radius(volume_overlay_, 12, 0);
+        lv_obj_set_style_border_width(volume_overlay_, 0, 0);
+        lv_obj_set_style_pad_all(volume_overlay_, 8, 0);
+        lv_obj_clear_flag(volume_overlay_, LV_OBJ_FLAG_SCROLLABLE);
+
+        volume_label_ = lv_label_create(volume_overlay_);
+        lv_obj_set_style_text_color(volume_label_, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_set_style_text_font(volume_label_, &lv_font_montserrat_14, 0);
+        lv_obj_align(volume_label_, LV_ALIGN_TOP_MID, 0, 0);
+
+        volume_bar_ = lv_bar_create(volume_overlay_);
+        lv_obj_set_size(volume_bar_, 150, 10);
+        lv_obj_align(volume_bar_, LV_ALIGN_BOTTOM_MID, 0, 0);
+        lv_bar_set_range(volume_bar_, 0, 100);
+        lv_obj_set_style_bg_color(volume_bar_, lv_color_hex(0x333333), 0);
+        lv_obj_set_style_bg_color(volume_bar_, lv_color_hex(0x00CC66), LV_PART_INDICATOR);
+    }
+
+    std::string text = "Vol: " + std::to_string(volume) + "%";
+    lv_label_set_text(volume_label_, text.c_str());
+    lv_bar_set_value(volume_bar_, volume, LV_ANIM_ON);
+
+    esp_timer_stop(volume_timer_);
+    esp_timer_start_once(volume_timer_, 1500 * 1000);
 }
