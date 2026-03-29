@@ -26,6 +26,7 @@ public:
     bool IsPlaying() override;
 
     void OnStationChanged(const std::string& name, int index, int total);
+    void OnStatusChanged(const std::string& status);
     void OnPlaybackStopped();
     void OnStreamError(const std::string& error);
 

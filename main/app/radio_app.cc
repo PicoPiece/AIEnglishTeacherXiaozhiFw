@@ -3,6 +3,7 @@
 #include "audio_codec.h"
 #include "display/display.h"
 #include "display/lcd_display.h"
+#include "board.h"
 
 #include <esp_log.h>
 #include <cstdio>
@@ -26,6 +27,8 @@ void RadioApp::OnExit() {
 
     if (player_ && player_->IsPlaying()) {
         player_->Stop();
+        Board::GetInstance().SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
+        ESP_LOGI(TAG, "WiFi power save restored on exit");
     }
 
     if (ui_container_ && saved_display) {
@@ -48,7 +51,20 @@ void RadioApp::OnStationChanged(const std::string& name, int index, int total) {
     if (current_screen_ == Screen::kNowPlaying && status_label_) {
         DisplayLockGuard lock(display_);
         char buf[128];
-        snprintf(buf, sizeof(buf), "%s\n\n%d / %d", name.c_str(), index + 1, total);
+        snprintf(buf, sizeof(buf), "%s\n(%d / %d)", name.c_str(), index + 1, total);
+        lv_label_set_text(status_label_, buf);
+    }
+}
+
+void RadioApp::OnStatusChanged(const std::string& status) {
+    if (!display_) return;
+    if (current_screen_ == Screen::kNowPlaying && status_label_) {
+        DisplayLockGuard lock(display_);
+        std::string name = player_->CurrentStationName();
+        int idx = player_->CurrentStationIndex();
+        int total = player_->StationCount();
+        char buf[128];
+        snprintf(buf, sizeof(buf), "%s\n(%d / %d)\n\n%s", name.c_str(), idx + 1, total, status.c_str());
         lv_label_set_text(status_label_, buf);
     }
 }
@@ -207,14 +223,18 @@ void RadioApp::OnButtonClick() {
         if (!player_ || player_->StationCount() == 0) return;
         if (selection_ < 0 || selection_ >= player_->StationCount()) return;
 
+        Board::GetInstance().SetPowerSaveLevel(PowerSaveLevel::PERFORMANCE);
+        ESP_LOGI(TAG, "WiFi power save OFF for streaming");
         codec_->EnableOutput(true);
-        player_->Play(selection_);
         ShowNowPlaying();
+        player_->Play(selection_);
     } else if (current_screen_ == Screen::kNowPlaying) {
         current_screen_ = Screen::kStationList;
         if (player_ && player_->IsPlaying()) {
             player_->Stop();
         }
+        Board::GetInstance().SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
+        ESP_LOGI(TAG, "WiFi power save restored");
         ShowStationList();
     }
 }
@@ -225,6 +245,8 @@ void RadioApp::OnButtonDoubleClick() {
         if (player_ && player_->IsPlaying()) {
             player_->Stop();
         }
+        Board::GetInstance().SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
+        ESP_LOGI(TAG, "WiFi power save restored");
         ShowStationList();
     }
 }

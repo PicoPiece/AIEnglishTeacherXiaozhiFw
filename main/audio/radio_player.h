@@ -3,6 +3,8 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/ringbuf.h>
+#include <esp_http_client.h>
 #include <atomic>
 #include <string>
 #include <vector>
@@ -19,6 +21,7 @@ struct RadioStation {
 class RadioPlayer {
 public:
     using StationChangeCallback = std::function<void(const std::string& name, int index, int total)>;
+    using StatusCallback = std::function<void(const std::string& status)>;
     using StopCallback = std::function<void()>;
     using ErrorCallback = std::function<void(const std::string& error)>;
 
@@ -40,12 +43,15 @@ public:
     void PrevStation();
 
     void SetStationChangeCallback(StationChangeCallback cb) { station_change_cb_ = cb; }
+    void SetStatusCallback(StatusCallback cb) { status_cb_ = cb; }
     void SetStopCallback(StopCallback cb) { stop_cb_ = cb; }
     void SetErrorCallback(ErrorCallback cb) { error_cb_ = cb; }
 
 private:
-    void StreamTask();
-    static void StreamTaskEntry(void* arg);
+    void DecoderTask();
+    void ReaderTask();
+    static void DecoderTaskEntry(void* arg);
+    static void ReaderTaskEntry(void* arg);
     void NotifyStationChange();
 
     AudioCodec* codec_;
@@ -54,8 +60,16 @@ private:
     std::atomic<bool> playing_{false};
     std::atomic<bool> stop_requested_{false};
     std::atomic<bool> switch_requested_{false};
-    TaskHandle_t task_handle_ = nullptr;
+    std::atomic<bool> reader_done_{false};
+    std::atomic<bool> reader_error_{false};
+
+    TaskHandle_t decoder_task_ = nullptr;
+    TaskHandle_t reader_task_ = nullptr;
+    RingbufHandle_t ring_buf_ = nullptr;
+    esp_http_client_handle_t http_client_ = nullptr;
+
     StationChangeCallback station_change_cb_;
+    StatusCallback status_cb_;
     StopCallback stop_cb_;
     ErrorCallback error_cb_;
 };

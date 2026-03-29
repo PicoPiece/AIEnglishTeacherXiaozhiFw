@@ -381,6 +381,11 @@ private:
                     radio_app_->OnStationChanged(name, idx, total);
                 }
             });
+            radio_player_->SetStatusCallback([this](const std::string& status) {
+                if (radio_app_) {
+                    radio_app_->OnStatusChanged(status);
+                }
+            });
             radio_player_->SetStopCallback([this]() {
                 if (radio_app_) {
                     radio_app_->OnPlaybackStopped();
