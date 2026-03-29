@@ -140,7 +140,11 @@ private:
     bool aborted_ = false;
     bool assets_version_checked_ = false;
     bool play_popup_on_listening_ = false;  // Flag to play popup sound after state changes to listening
+    bool user_has_spoken_ = false;
     int clock_ticks_ = 0;
+
+    static constexpr int kSilenceTimeoutMs = 3000;
+    esp_timer_handle_t silence_timer_handle_ = nullptr;
     TaskHandle_t activation_task_handle_ = nullptr;
 
 
