@@ -101,7 +101,7 @@ Full internet radio player streaming English-language stations via HTTP MP3.
 - Auto-reconnect on stream interruption with configurable retry delay
 - HTTP redirect support (up to 10 redirects)
 - ICY protocol compatibility (Icecast/Shoutcast servers)
-- 8 pre-loaded English radio stations (NPR, KEXP, SomaFM, 181FM, etc.)
+- 6 pre-loaded English radio stations optimized for Vietnam (BBC World Service, BBC WS East Asia, NPR, CNN, SomaFM, KEXP)
 
 **Streaming engine (`RadioPlayer`):**
 - Dedicated FreeRTOS streaming task with 8KB stack

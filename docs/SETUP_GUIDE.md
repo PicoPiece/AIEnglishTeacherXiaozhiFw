@@ -101,15 +101,13 @@ EnglishTeacherAI is an AI-powered English learning device built on the AI-VOX3 b
 
 - Stream English-language internet radio stations via HTTP MP3
 - Pre-buffering (20KB) for smooth playback startup
-- Pre-loaded stations focused on English learning (news, talk, music):
-  - NPR News (24/7 US English news)
-  - KEXP Seattle (indie/alternative)
-  - SomaFM Groove Salad (ambient/chill)
-  - SomaFM Secret Agent (lounge)
-  - 181FM Classical
-  - Relaxing Jazz
-  - WFMT Classical
-  - Chillout Lounge
+- Pre-loaded stations optimized for Vietnam (low bitrate for less lag):
+  - BBC World Service (56kbps — British English news/talk)
+  - BBC WS East Asia (56kbps — optimized CDN for Asia)
+  - NPR News (128kbps — US English news)
+  - CNN Radio (96kbps — US news/business)
+  - SomaFM Groove Salad (128kbps — ambient/chill background)
+  - KEXP Seattle (128kbps — indie/alternative music)
 - Station list UI with genre tags
 - Now Playing screen with station name and status
 - Auto-reconnect on stream interruption with configurable retry delay

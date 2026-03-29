@@ -186,15 +186,13 @@ private:
     void InitializeRadioPlayer() {
         radio_player_ = new RadioPlayer(GetAudioCodec());
 
-        // English radio stations (verified MP3 streams)
-        radio_player_->AddStation("NPR News",        "http://npr-ice.streamguys1.com/live.mp3",            "News");
-        radio_player_->AddStation("KEXP Seattle",     "http://live-mp3-128.kexp.org/kexp128.mp3",           "Indie");
-        radio_player_->AddStation("SomaFM Groove",    "http://ice1.somafm.com/groovesalad-128-mp3",         "Chill");
-        radio_player_->AddStation("SomaFM Secret",    "http://ice1.somafm.com/secretagent-128-mp3",         "Lounge");
-        radio_player_->AddStation("181FM Classical",   "http://listen.181fm.com/181-classical_128k.mp3",     "Classical");
-        radio_player_->AddStation("Relaxing Jazz",     "http://stream-02-eu.relaxingjazz.com/stream/3/",     "Jazz");
-        radio_player_->AddStation("WFMT Classical",    "https://wfmt.streamguys1.com/main-mp3",              "Classical");
-        radio_player_->AddStation("Chillout Lounge",   "http://strm112.1.fm/chilloutlounge_mobile_mp3",      "Chill");
+        // English radio stations optimized for Vietnam (low bitrate = less lag)
+        radio_player_->AddStation("BBC World Service", "http://stream.live.vc.bbcmedia.co.uk/bbc_world_service",           "News 56k");
+        radio_player_->AddStation("BBC WS East Asia",  "http://stream.live.vc.bbcmedia.co.uk/bbc_world_service_east_asia", "News 56k");
+        radio_player_->AddStation("NPR News",          "http://npr-ice.streamguys1.com/live.mp3",                          "News 128k");
+        radio_player_->AddStation("CNN Radio",          "https://tunein.cdnstream1.com/2868_96.mp3",                        "News 96k");
+        radio_player_->AddStation("SomaFM Groove",     "http://ice1.somafm.com/groovesalad-128-mp3",                       "Chill 128k");
+        radio_player_->AddStation("KEXP Seattle",      "http://live-mp3-128.kexp.org/kexp128.mp3",                         "Indie 128k");
 
         ESP_LOGI(TAG, "RadioPlayer initialized with %d stations", radio_player_->StationCount());
     }
