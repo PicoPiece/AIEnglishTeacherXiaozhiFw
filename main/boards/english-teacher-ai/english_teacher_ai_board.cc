@@ -44,8 +44,10 @@ private:
     RadioPlayer* radio_player_ = nullptr;
     bool sd_card_mounted_ = false;
     AppManager* app_manager_ = nullptr;
-    int64_t vol_up_press_time_ = 0;
-    int64_t vol_down_press_time_ = 0;
+    esp_timer_handle_t vol_up_repeat_timer_ = nullptr;
+    esp_timer_handle_t vol_down_repeat_timer_ = nullptr;
+    bool vol_up_changed_ = false;
+    bool vol_down_changed_ = false;
     ChatApp* chat_app_ = nullptr;
     MusicApp* music_app_ = nullptr;
     RadioApp* radio_app_ = nullptr;
@@ -456,22 +458,54 @@ private:
 
         // GPIO 45 = physical LEFT button, GPIO 46 = physical RIGHT button
         // Click: app navigation (direction already correct)
-        // Long press: volume (LEFT = decrease, RIGHT = increase)
+        // Hold: volume (LEFT = decrease 5%/s, RIGHT = increase 5%/s)
+
+        esp_timer_create_args_t vol_up_timer_args = {
+            .callback = [](void* arg) {
+                auto* self = (EnglishTeacherAiBoard*)arg;
+                auto codec = self->GetAudioCodec();
+                int volume = codec->output_volume() - 5;
+                if (volume < 0) volume = 0;
+                codec->SetOutputVolume(volume);
+                ESP_LOGI(TAG, "VOL- (left hold) -> volume=%d", volume);
+                if (self->app_manager_) self->app_manager_->ShowVolumeNotification(volume);
+                self->vol_up_changed_ = true;
+                esp_timer_start_once(self->vol_up_repeat_timer_, 500000);
+            },
+            .arg = this,
+            .dispatch_method = ESP_TIMER_TASK,
+            .name = "vol_up_repeat",
+            .skip_unhandled_events = true
+        };
+        esp_timer_create(&vol_up_timer_args, &vol_up_repeat_timer_);
+
+        esp_timer_create_args_t vol_down_timer_args = {
+            .callback = [](void* arg) {
+                auto* self = (EnglishTeacherAiBoard*)arg;
+                auto codec = self->GetAudioCodec();
+                int volume = codec->output_volume() + 5;
+                if (volume > 100) volume = 100;
+                codec->SetOutputVolume(volume);
+                ESP_LOGI(TAG, "VOL+ (right hold) -> volume=%d", volume);
+                if (self->app_manager_) self->app_manager_->ShowVolumeNotification(volume);
+                self->vol_down_changed_ = true;
+                esp_timer_start_once(self->vol_down_repeat_timer_, 500000);
+            },
+            .arg = this,
+            .dispatch_method = ESP_TIMER_TASK,
+            .name = "vol_down_repeat",
+            .skip_unhandled_events = true
+        };
+        esp_timer_create(&vol_down_timer_args, &vol_down_repeat_timer_);
 
         volume_up_button_.OnPressDown([this]() {
-            vol_up_press_time_ = esp_timer_get_time();
+            vol_up_changed_ = false;
+            esp_timer_start_once(vol_up_repeat_timer_, 800000);
         });
 
         volume_up_button_.OnPressUp([this]() {
-            int64_t held_ms = (esp_timer_get_time() - vol_up_press_time_) / 1000;
-            if (held_ms >= 800) {
-                auto codec = GetAudioCodec();
-                int volume = codec->output_volume() - 10;
-                if (volume < 0) volume = 0;
-                codec->SetOutputVolume(volume);
-                ESP_LOGI(TAG, "VOL- (left) -> volume=%d", volume);
-                if (app_manager_) app_manager_->ShowVolumeNotification(volume);
-            } else {
+            esp_timer_stop(vol_up_repeat_timer_);
+            if (!vol_up_changed_) {
                 auto& app = Application::GetInstance();
                 if (app.GetDeviceState() >= kDeviceStateIdle && app_manager_) {
                     app_manager_->OnVolumeUpClick();
@@ -480,19 +514,13 @@ private:
         });
 
         volume_down_button_.OnPressDown([this]() {
-            vol_down_press_time_ = esp_timer_get_time();
+            vol_down_changed_ = false;
+            esp_timer_start_once(vol_down_repeat_timer_, 800000);
         });
 
         volume_down_button_.OnPressUp([this]() {
-            int64_t held_ms = (esp_timer_get_time() - vol_down_press_time_) / 1000;
-            if (held_ms >= 800) {
-                auto codec = GetAudioCodec();
-                int volume = codec->output_volume() + 10;
-                if (volume > 100) volume = 100;
-                codec->SetOutputVolume(volume);
-                ESP_LOGI(TAG, "VOL+ (right) -> volume=%d", volume);
-                if (app_manager_) app_manager_->ShowVolumeNotification(volume);
-            } else {
+            esp_timer_stop(vol_down_repeat_timer_);
+            if (!vol_down_changed_) {
                 auto& app = Application::GetInstance();
                 if (app.GetDeviceState() >= kDeviceStateIdle && app_manager_) {
                     app_manager_->OnVolumeDownClick();
