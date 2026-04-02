@@ -80,7 +80,8 @@ EnglishTeacherAI is an AI-powered English learning device built on the AI-VOX3 b
 ### 1. AI English Conversation (ChatApp)
 
 - Voice conversation with an AI English teacher
-- Press BOOT to start talking, AI auto-detects when you stop (VAD)
+- **Push-to-talk (walkie-talkie style):** hold BOOT to record, release to send
+- No auto-cutoff — recording continues as long as the button is held, even with pauses
 - Chat bubble UI (WeChat style) shows conversation history
 - Scroll through conversation with VOL+/VOL- buttons
 - Animated emoji on idle screen (breathing effect, 3/4 scale)
@@ -111,7 +112,7 @@ EnglishTeacherAI is an AI-powered English learning device built on the AI-VOX3 b
 - Station list UI with genre tags
 - Now Playing screen with station name and status
 - Auto-reconnect on stream interruption with configurable retry delay
-- Long-press VOL+/VOL- to switch stations while streaming
+- Dynamic status display (Connecting → Buffering → Streaming)
 
 ### 4. Messages (MessagesApp)
 
@@ -143,21 +144,24 @@ EnglishTeacherAI is an AI-powered English learning device built on the AI-VOX3 b
 | Action | What it does |
 |--------|-------------|
 | **BOOT click** | Primary action (depends on current app/screen) |
-| **BOOT double-click** | Back / navigate up within an app |
-| **BOOT long-press (2s)** | Return to app menu from any app |
+| **BOOT hold (> 300ms)** | Push-to-talk in ChatApp — hold to record, release to send |
+| **BOOT double-click** | Open app menu (from ChatApp) / Back (from other apps) |
+| **BOOT long-press (2s)** | Open app menu (from Music/Radio/Messages apps) |
 | **VOL+ click** | Navigate up in lists / scroll up in chat |
 | **VOL- click** | Navigate down in lists / scroll down in chat |
-| **VOL+ long-press (0.8s)** | Volume up (+10%) — shows notification on screen |
-| **VOL- long-press (0.8s)** | Volume down (-10%) — shows notification on screen |
+| **VOL+ hold** | Continuous volume up (+5% every 500ms) — shows on-screen notification |
+| **VOL- hold** | Continuous volume down (-5% every 500ms) — shows on-screen notification |
 
 ### App Menu
 
-The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) from any app.
+The app menu is the central hub.
+- From **ChatApp**: double-click BOOT to open
+- From **other apps**: long-press BOOT (2s) to open
 
 | Action | What it does |
 |--------|-------------|
 | VOL+/VOL- click | Move selection up/down |
-| VOL+/VOL- long-press | Volume up/down |
+| VOL+/VOL- hold | Volume up/down |
 | BOOT click | Enter selected app |
 | BOOT long-press (2s) | Enter WiFi configuration mode |
 
@@ -165,11 +169,13 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 
 | Action | What it does |
 |--------|-------------|
-| BOOT click | Start/stop talking to AI |
+| BOOT hold (> 300ms) | **Push-to-talk** — hold to record, release to send |
+| BOOT double-click | Open app menu |
 | VOL+ click | Scroll chat history up (older) |
 | VOL- click | Scroll chat history down (newer) |
-| VOL+/VOL- long-press | Volume up/down |
-| BOOT double-click | *(no action)* |
+| VOL+ / VOL- hold | Volume up / down (continuous) |
+
+> **Note:** Recording continues as long as the button is held, even during pauses in speech. The server cannot interrupt while the button is held.
 
 ### MusicApp (SD Card Player)
 
@@ -178,10 +184,11 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 | Action | What it does |
 |--------|-------------|
 | VOL+/VOL- click | Move selection up/down |
-| VOL+/VOL- long-press | Volume up/down |
+| VOL+ / VOL- hold | Volume up / down (continuous) |
 | BOOT click on `[Folder]` | Open folder |
 | BOOT click on file | Play selected song |
 | BOOT double-click | Go back to parent folder |
+| BOOT long-press (2s) | Open app menu |
 
 **Now Playing:**
 
@@ -189,9 +196,10 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 |--------|-------------|
 | VOL+ click | Previous track |
 | VOL- click | Next track |
-| VOL+/VOL- long-press | Volume up/down |
+| VOL+ / VOL- hold | Volume up / down (continuous) |
 | BOOT click | Cycle play mode (Sequential → Repeat All → Repeat One → Shuffle) |
 | BOOT double-click | Stop playback, return to browser |
+| BOOT long-press (2s) | Open app menu |
 
 ### MessagesApp
 
@@ -200,16 +208,18 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 | Action | What it does |
 |--------|-------------|
 | VOL+/VOL- click | Move selection up/down |
-| VOL+/VOL- long-press | Volume up/down |
+| VOL+ / VOL- hold | Volume up / down (continuous) |
 | BOOT click | Open selected message |
+| BOOT long-press (2s) | Open app menu |
 
 **Message Detail:**
 
 | Action | What it does |
 |--------|-------------|
 | VOL+/VOL- click | Scroll message content |
-| VOL+/VOL- long-press | Volume up/down |
+| VOL+ / VOL- hold | Volume up / down (continuous) |
 | BOOT double-click | Back to message list |
+| BOOT long-press (2s) | Open app menu |
 
 ### RadioApp (Internet Radio)
 
@@ -218,8 +228,9 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 | Action | What it does |
 |--------|-------------|
 | VOL+/VOL- click | Move selection up/down |
-| VOL+/VOL- long-press | Volume up/down |
+| VOL+ / VOL- hold | Volume up / down (continuous) |
 | BOOT click | Start streaming selected station |
+| BOOT long-press (2s) | Open app menu |
 
 **Now Playing:**
 
@@ -227,9 +238,10 @@ The app menu is the central hub. Access it by long-pressing BOOT (2 seconds) fro
 |--------|-------------|
 | VOL+ click | Switch to previous station |
 | VOL- click | Switch to next station |
-| VOL+/VOL- long-press | Volume up/down |
+| VOL+ / VOL- hold | Volume up / down (continuous) |
 | BOOT click | Stop streaming, return to station list |
 | BOOT double-click | Stop streaming, return to station list |
+| BOOT long-press (2s) | Open app menu |
 
 ---
 
