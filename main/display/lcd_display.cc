@@ -568,8 +568,6 @@ void LcdDisplay::SetChatMessage(const char* role, const char* content) {
                 }
             }
         }
-    } else {
-        ExitEmojiIdleMode();
     }
 
     // System message with empty content = entering idle
@@ -579,6 +577,8 @@ void LcdDisplay::SetChatMessage(const char* role, const char* content) {
         }
         return;
     }
+
+    ExitEmojiIdleMode();
 
     auto lvgl_theme = static_cast<LvglTheme*>(current_theme_);
 

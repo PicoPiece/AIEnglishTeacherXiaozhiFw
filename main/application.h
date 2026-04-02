@@ -112,6 +112,8 @@ public:
     AecMode GetAecMode() const { return aec_mode_; }
     void PlaySound(const std::string_view& sound);
     AudioService& GetAudioService() { return audio_service_; }
+    void SetPttActive(bool active) { ptt_active_ = active; }
+    bool IsPttActive() const { return ptt_active_; }
     
     /**
      * Reset protocol resources (thread-safe)
@@ -139,11 +141,12 @@ private:
     bool has_server_time_ = false;
     bool aborted_ = false;
     bool assets_version_checked_ = false;
-    bool play_popup_on_listening_ = false;  // Flag to play popup sound after state changes to listening
+    bool play_popup_on_listening_ = false;
     bool user_has_spoken_ = false;
+    bool ptt_active_ = false;
     int clock_ticks_ = 0;
 
-    static constexpr int kSilenceTimeoutMs = 3000;
+    static constexpr int kSilenceTimeoutMs = 1000;
     esp_timer_handle_t silence_timer_handle_ = nullptr;
     TaskHandle_t activation_task_handle_ = nullptr;
 

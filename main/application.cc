@@ -250,7 +250,7 @@ void Application::Run() {
                 auto led = Board::GetInstance().GetLed();
                 led->OnStateChanged();
 
-                if (listening_mode_ == kListeningModeManualStop) {
+                if (listening_mode_ == kListeningModeManualStop && !ptt_active_) {
                     if (audio_service_.IsVoiceDetected()) {
                         user_has_spoken_ = true;
                         esp_timer_stop(silence_timer_handle_);
@@ -787,6 +787,8 @@ void Application::HandleStopListeningEvent() {
         if (protocol_) {
             protocol_->SendStopListening();
         }
+        SetDeviceState(kDeviceStateIdle);
+    } else if (state == kDeviceStateConnecting) {
         SetDeviceState(kDeviceStateIdle);
     }
 }

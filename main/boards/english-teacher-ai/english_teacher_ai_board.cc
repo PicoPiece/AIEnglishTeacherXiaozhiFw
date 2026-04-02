@@ -48,6 +48,8 @@ private:
     esp_timer_handle_t vol_down_repeat_timer_ = nullptr;
     bool vol_up_changed_ = false;
     bool vol_down_changed_ = false;
+    esp_timer_handle_t ptt_delay_timer_ = nullptr;
+    bool ptt_active_ = false;
     ChatApp* chat_app_ = nullptr;
     MusicApp* music_app_ = nullptr;
     RadioApp* radio_app_ = nullptr;
@@ -412,6 +414,50 @@ private:
 
     void InitializeButtons() {
 
+        esp_timer_create_args_t ptt_timer_args = {
+            .callback = [](void* arg) {
+                auto* self = (EnglishTeacherAiBoard*)arg;
+                auto& app = Application::GetInstance();
+                auto state = app.GetDeviceState();
+                if (state < kDeviceStateIdle) return;
+                if (self->app_manager_ && !self->app_manager_->InMenu()) {
+                    auto* active = self->app_manager_->GetActiveApp();
+                    if (active == self->chat_app_) {
+                        self->ptt_active_ = true;
+                        app.SetPttActive(true);
+                        app.StartListening();
+                    }
+                }
+            },
+            .arg = this,
+            .dispatch_method = ESP_TIMER_TASK,
+            .name = "ptt_delay",
+            .skip_unhandled_events = true
+        };
+        esp_timer_create(&ptt_timer_args, &ptt_delay_timer_);
+
+        boot_button_.OnPressDown([this]() {
+            auto& app = Application::GetInstance();
+            auto state = app.GetDeviceState();
+            if (state < kDeviceStateIdle) return;
+
+            ptt_active_ = false;
+            esp_timer_start_once(ptt_delay_timer_, 300000);
+        });
+
+        boot_button_.OnPressUp([this]() {
+            esp_timer_stop(ptt_delay_timer_);
+            if (ptt_active_) {
+                ptt_active_ = false;
+                auto& app = Application::GetInstance();
+                app.SetPttActive(false);
+                auto state = app.GetDeviceState();
+                if (state == kDeviceStateListening || state == kDeviceStateConnecting) {
+                    app.StopListening();
+                }
+            }
+        });
+
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
             auto state = app.GetDeviceState();
@@ -432,17 +478,35 @@ private:
             if (state < kDeviceStateIdle) return;
 
             if (app_manager_) {
+                if (!app_manager_->InMenu()) {
+                    auto* active = app_manager_->GetActiveApp();
+                    if (active == chat_app_) {
+                        app_manager_->OnButtonLongPress();
+                        return;
+                    }
+                }
                 app_manager_->OnButtonDoubleClick();
             }
         });
 
         boot_button_.OnLongPress([this]() {
+            esp_timer_stop(ptt_delay_timer_);
+
             auto& app = Application::GetInstance();
             auto state = app.GetDeviceState();
 
             if (state == kDeviceStateStarting ||
                 state == kDeviceStateWifiConfiguring) {
                 EnterWifiConfigMode();
+                return;
+            }
+
+            if (ptt_active_) {
+                ptt_active_ = false;
+                app.SetPttActive(false);
+                if (state == kDeviceStateListening || state == kDeviceStateConnecting) {
+                    app.StopListening();
+                }
                 return;
             }
 

@@ -25,7 +25,7 @@ void ChatApp::OnExit() {
 }
 
 void ChatApp::OnButtonClick() {
-    Application::GetInstance().ToggleChatState();
+    // Push-to-talk is handled by board-level PressDown/PressUp
 }
 
 void ChatApp::OnButtonDoubleClick() {}
