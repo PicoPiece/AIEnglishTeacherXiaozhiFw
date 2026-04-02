@@ -502,11 +502,6 @@ private:
             }
 
             if (ptt_active_) {
-                ptt_active_ = false;
-                app.SetPttActive(false);
-                if (state == kDeviceStateListening || state == kDeviceStateConnecting) {
-                    app.StopListening();
-                }
                 return;
             }
 
