@@ -142,12 +142,9 @@ private:
     bool aborted_ = false;
     bool assets_version_checked_ = false;
     bool play_popup_on_listening_ = false;
-    bool user_has_spoken_ = false;
     bool ptt_active_ = false;
     int clock_ticks_ = 0;
 
-    static constexpr int kSilenceTimeoutMs = 1000;
-    esp_timer_handle_t silence_timer_handle_ = nullptr;
     TaskHandle_t activation_task_handle_ = nullptr;
 
 

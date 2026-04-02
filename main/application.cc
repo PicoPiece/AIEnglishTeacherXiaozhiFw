@@ -44,25 +44,9 @@ Application::Application() {
         .skip_unhandled_events = true
     };
     esp_timer_create(&clock_timer_args, &clock_timer_handle_);
-
-    esp_timer_create_args_t silence_timer_args = {
-        .callback = [](void* arg) {
-            Application* app = (Application*)arg;
-            app->StopListening();
-        },
-        .arg = this,
-        .dispatch_method = ESP_TIMER_TASK,
-        .name = "silence_timer",
-        .skip_unhandled_events = true
-    };
-    esp_timer_create(&silence_timer_args, &silence_timer_handle_);
 }
 
 Application::~Application() {
-    if (silence_timer_handle_ != nullptr) {
-        esp_timer_stop(silence_timer_handle_);
-        esp_timer_delete(silence_timer_handle_);
-    }
     if (clock_timer_handle_ != nullptr) {
         esp_timer_stop(clock_timer_handle_);
         esp_timer_delete(clock_timer_handle_);
@@ -249,17 +233,6 @@ void Application::Run() {
             if (GetDeviceState() == kDeviceStateListening) {
                 auto led = Board::GetInstance().GetLed();
                 led->OnStateChanged();
-
-                if (listening_mode_ == kListeningModeManualStop && !ptt_active_) {
-                    if (audio_service_.IsVoiceDetected()) {
-                        user_has_spoken_ = true;
-                        esp_timer_stop(silence_timer_handle_);
-                    } else if (user_has_spoken_) {
-                        esp_timer_stop(silence_timer_handle_);
-                        esp_timer_start_once(silence_timer_handle_,
-                                             kSilenceTimeoutMs * 1000LL);
-                    }
-                }
             }
         }
 
@@ -721,7 +694,6 @@ void Application::HandleToggleChatEvent() {
     } else if (state == kDeviceStateSpeaking) {
         AbortSpeaking(kAbortReasonNone);
     } else if (state == kDeviceStateListening) {
-        esp_timer_stop(silence_timer_handle_);
         protocol_->CloseAudioChannel();
     }
 }
@@ -776,8 +748,6 @@ void Application::HandleStartListeningEvent() {
 
 void Application::HandleStopListeningEvent() {
     auto state = GetDeviceState();
-    
-    esp_timer_stop(silence_timer_handle_);
 
     if (state == kDeviceStateAudioTesting) {
         audio_service_.EnableAudioTesting(false);
@@ -960,8 +930,6 @@ void Application::AbortSpeaking(AbortReason reason) {
 
 void Application::SetListeningMode(ListeningMode mode) {
     listening_mode_ = mode;
-    user_has_spoken_ = false;
-    esp_timer_stop(silence_timer_handle_);
     SetDeviceState(kDeviceStateListening);
 }
 
