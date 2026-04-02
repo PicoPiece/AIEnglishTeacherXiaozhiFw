@@ -28,7 +28,7 @@ void ChatApp::OnButtonClick() {
     // Push-to-talk is handled by board-level PressDown/PressUp
 }
 
-void ChatApp::OnButtonDoubleClick() {}
+bool ChatApp::OnButtonDoubleClick() { return false; }
 
 void ChatApp::OnVolumeUpClick() {
     auto* d = display_ ? display_ : static_cast<LcdDisplay*>(Board::GetInstance().GetDisplay());

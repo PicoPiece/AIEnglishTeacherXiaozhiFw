@@ -11,7 +11,7 @@ public:
     virtual void OnEnter(LcdDisplay* display) = 0;
     virtual void OnExit() = 0;
     virtual void OnButtonClick() = 0;
-    virtual void OnButtonDoubleClick() {}
+    virtual bool OnButtonDoubleClick() { return false; }
     virtual void OnVolumeUpClick() = 0;
     virtual void OnVolumeDownClick() = 0;
     virtual void OnVolumeUpLongPress() {}

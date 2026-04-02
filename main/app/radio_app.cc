@@ -239,7 +239,7 @@ void RadioApp::OnButtonClick() {
     }
 }
 
-void RadioApp::OnButtonDoubleClick() {
+bool RadioApp::OnButtonDoubleClick() {
     if (current_screen_ == Screen::kNowPlaying) {
         current_screen_ = Screen::kStationList;
         if (player_ && player_->IsPlaying()) {
@@ -248,7 +248,9 @@ void RadioApp::OnButtonDoubleClick() {
         Board::GetInstance().SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
         ESP_LOGI(TAG, "WiFi power save restored");
         ShowStationList();
+        return true;
     }
+    return false;
 }
 
 void RadioApp::OnVolumeUpClick() {

@@ -180,7 +180,9 @@ void AppManager::OnButtonClick() {
 
 void AppManager::OnButtonDoubleClick() {
     if (!InMenu() && active_app_) {
-        active_app_->OnButtonDoubleClick();
+        if (!active_app_->OnButtonDoubleClick()) {
+            ReturnToMenu();
+        }
     }
 }
 

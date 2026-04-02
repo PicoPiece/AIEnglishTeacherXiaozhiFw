@@ -332,7 +332,15 @@ void MusicApp::OnButtonClick() {
     }
 }
 
-void MusicApp::OnButtonDoubleClick() {
+bool MusicApp::OnButtonDoubleClick() {
+    if (current_screen_ == Screen::kNowPlaying) {
+        current_screen_ = Screen::kBrowse;
+        if (player_ && player_->IsPlaying()) {
+            player_->Stop();
+        }
+        ShowBrowse();
+        return true;
+    }
     if (current_screen_ == Screen::kBrowse) {
         if (current_path_ != SD_PATH) {
             auto slash = current_path_.rfind('/');
@@ -342,14 +350,10 @@ void MusicApp::OnButtonDoubleClick() {
                 current_path_ = SD_PATH;
             }
             ShowBrowse();
+            return true;
         }
-    } else if (current_screen_ == Screen::kNowPlaying) {
-        current_screen_ = Screen::kBrowse;
-        if (player_ && player_->IsPlaying()) {
-            player_->Stop();
-        }
-        ShowBrowse();
     }
+    return false;
 }
 
 void MusicApp::OnVolumeUpClick() {

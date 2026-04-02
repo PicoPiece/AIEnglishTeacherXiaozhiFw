@@ -478,13 +478,6 @@ private:
             if (state < kDeviceStateIdle) return;
 
             if (app_manager_) {
-                if (!app_manager_->InMenu()) {
-                    auto* active = app_manager_->GetActiveApp();
-                    if (active == chat_app_) {
-                        app_manager_->OnButtonLongPress();
-                        return;
-                    }
-                }
                 app_manager_->OnButtonDoubleClick();
             }
         });
@@ -505,12 +498,8 @@ private:
                 return;
             }
 
-            if (app_manager_ && !app_manager_->InMenu()) {
-                app_manager_->OnButtonLongPress();
-            } else {
-                if (app_manager_) {
-                    app_manager_->CleanupForWifiConfig();
-                }
+            if (app_manager_ && app_manager_->InMenu()) {
+                app_manager_->CleanupForWifiConfig();
                 EnterWifiConfigMode();
             }
         });

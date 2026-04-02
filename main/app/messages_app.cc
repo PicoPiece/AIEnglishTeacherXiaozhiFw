@@ -221,10 +221,12 @@ void MessagesApp::OnButtonClick() {
     }
 }
 
-void MessagesApp::OnButtonDoubleClick() {
+bool MessagesApp::OnButtonDoubleClick() {
     if (detail_view_) {
         CreateUI();
+        return true;
     }
+    return false;
 }
 
 void MessagesApp::OnVolumeUpClick() {

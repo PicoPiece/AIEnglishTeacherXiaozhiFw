@@ -29,7 +29,7 @@ public:
     void OnEnter(LcdDisplay* display) override;
     void OnExit() override;
     void OnButtonClick() override;
-    void OnButtonDoubleClick() override;
+    bool OnButtonDoubleClick() override;
     void OnVolumeUpClick() override;
     void OnVolumeDownClick() override;
     int GetBadgeCount() override;
